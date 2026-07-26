@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>cpp_admm</name>
+  <version>0.1.0</version>
+  <description>
+    Production consensus-ADMM kernel for distributed MPC: OSQP per-agent QP, ROS 2 or
+    ZeroMQ transport, one process per agent.
+  </description>
+  <maintainer email="ali.eimaan@icloud.com">M. Ali Eiman</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>eigen</depend>
+
+  <!-- osqp and cppzmq are not in rosdep on every distro; see docs/README_math.md for the
+       build-from-source instructions if rosdep cannot resolve them. -->
+  <depend>osqp_vendor</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_cmake_cppcheck</test_depend>
+  <test_depend>ament_cmake_uncrustify</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

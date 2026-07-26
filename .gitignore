@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# C++ / ROS 2 / colcon
+build/
+install/
+log/
+compile_commands.json
+*.o
+*.so
+*.a
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Generated media (checked-in release GIFs are force-added; see media/README.md)
+media/*.mp4
+media/scratch/

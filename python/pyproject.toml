@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "distributed-mpc-admm"
+version = "0.1.0"
+description = "Distributed MPC via consensus ADMM for double-integrator agents in 2D"
+readme = "../README.md"
+requires-python = ">=3.10"
+license = { file = "../LICENSE" }
+authors = [{ name = "M. Ali Eiman" }]
+keywords = ["mpc", "admm", "distributed-optimization", "multi-agent", "formation-control"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "cvxpy>=1.4",
+    "osqp>=0.6.3",
+    "networkx>=3.1",
+    "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "black>=24.3",
+    "mypy>=1.9",
+    "nbmake>=1.5",
+    "jupyter>=1.0",
+    "pillow>=10.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/M-Ali-Eiman/distributed-mpc-admm"
+Issues = "https://github.com/M-Ali-Eiman/distributed-mpc-admm/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["distributed_mpc_admm*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "slow: marks tests that take more than ~5 s (deselect with '-m \"not slow\"')",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "NPY"]
+ignore = ["N803", "N806"]  # allow capital matrix names (A, B, Q, R, Phi, Gamma)
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true

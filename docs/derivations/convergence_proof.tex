@@ -1,0 +1,91 @@
+% Convergence of consensus ADMM, in this repo's notation, with the assumptions that fail
+% under switching topology identified explicitly.
+%
+% Depends on consensus_admm_derivation.tex. Compile: latexmk -pdf convergence_proof.tex
+%
+% TODO [GUIDE 9.5]: Section 7 is the reason this document exists and is the direct hook
+% into the thesis proposal. Write the standard proof carefully, then be precise and
+% unsparing about what it does not cover. Do not claim any result the experiments do not
+% support.
+
+\documentclass[11pt]{article}
+\input{preamble}
+
+\title{Convergence of Consensus ADMM, and Where It Fails Under Switching Topology}
+\author{M. Ali Eiman}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+% TODO: state the classical result, then state the gap: the proof assumes a fixed
+% constraint set and synchronous updates, and a switching communication graph violates
+% both. This repo measures the consequences; characterising them is thesis work.
+\end{abstract}
+
+\section{Assumptions}
+% TODO: number them A1--A5 and refer to them by number for the rest of the document.
+%   A1  each $f_i$ closed, proper, convex
+%   A2  the unaugmented Lagrangian has a saddle point
+%   A3  the communication graph is fixed and connected
+%   A4  updates are synchronous: every agent completes iteration $k$ before any starts $k+1$
+%   A5  local subproblems are solved exactly
+% A3--A5 are the ones this repo breaks; flag that here so the reader knows where it is going.
+
+\section{The Lyapunov function}
+% TODO: $V^k = \tfrac{1}{\rho}\|\lambda^k - \lambda^\star\|^2 + \rho\|z^k - z^\star\|^2$.
+% Motivate it before using it.
+
+\section{Monotone decrease}
+% TODO: the three inequalities from optimality of the $x$- and $z$-updates plus the dual
+% update, combined into $V^{k+1} \le V^k - \rho\|r^k\|^2 - \rho\|s^k\|^2$. Show the steps;
+% this is the technical core.
+
+\section{Convergence of residuals and objective}
+% TODO: summability of the residuals, $r^k \to 0$, $s^k \to 0$, objective convergence, and
+% dual convergence. State the $O(1/k)$ ergodic rate.
+
+\section{Linear rate under strong convexity}
+% TODO: add strong convexity of $f_i$ and Lipschitz $\nabla f_i$; state the linear rate and
+% carry through the dependence on the graph via $\lambda_2(L)$ and $\lambda_{\max}(L)$.
+% Give the optimal $\rho$ that the bound implies and compare it to the empirical optimum
+% measured in notebook 05 -- a stated bound with a measured comparison is worth far more
+% than the bound alone.
+
+\section{Specialisation to this problem}
+% TODO: verify A1--A2 for the MPC problem: the local QPs are strongly convex when
+% $r_{\mathrm{input}} > 0$, feasibility is guaranteed by the box constraints, and a saddle
+% point exists. Then compute the actual condition number for the 4-agent square example and
+% evaluate the rate bound numerically.
+
+\section{What breaks under switching topology}
+% TODO: the payload of this document. Treat each violated assumption separately:
+%
+%   A3 (fixed graph). When $\bar{\mathcal{N}}_i$ changes, the *decision variable* changes
+%   dimension. $V^k$ is defined on a space that no longer exists, so monotone decrease does
+%   not merely weaken -- it becomes ill-typed. A merge event needs a set-valued reset map
+%   relating the pre- and post-event iterates. Say precisely that, and note that this is
+%   the AHTD object in the thesis proposal.
+%
+%   A4 (synchrony). Under packet loss, agents update on different $z$ vectors, so there is
+%   no single $z^k$ for $V^k$ to reference. Cite the partially-asynchronous ADMM results
+%   that do exist, state their bounded-delay assumption, and note that they do not cover a
+%   simultaneously changing graph.
+%
+%   A5 (exact solves). Inexact ADMM has summable-error results; the fixed-iteration-budget
+%   inner solve used on hardware does not satisfy them. Reference the measured residual
+%   floor from notebook 04 as the practical consequence.
+%
+% Close with what the experiments show: bounded degradation for moderate loss and dwell
+% times, structured failure at disconnection. Structured failure is what makes the hybrid
+% treatment tractable -- and this is a conjecture supported by measurement, not a theorem.
+% Label it as such.
+
+\section{Open questions}
+% TODO: three or four sharply stated questions, each of which a chapter could answer.
+% These are what an advisor actually reads this document for.
+
+\bibliographystyle{plain}
+\bibliography{references}
+\end{document}
