@@ -1,3 +1,6 @@
+// Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+// SPDX-License-Identifier: BSD-3-Clause
+
 // OSQP-backed per-agent QP. See per_agent_qp.hpp for the variable and constraint layout.
 
 #include "cpp_admm/per_agent_qp.hpp"
@@ -12,13 +15,13 @@ namespace cpp_admm
 
 const char * toString(QpStatus)
 {
-  // TODO [GUIDE 6.6]: map each enumerator to a short string.
+  // TODO(deepseek §9.4): map each enumerator to a short string.
   throw std::logic_error("not implemented");
 }
 
 bool QpSolution::ok() const noexcept
 {
-  // TODO: kSolved and kSolvedInaccurate are both acceptable inside an ADMM loop -- the
+  // TODO(deepseek §9.3): kSolved and kSolvedInaccurate are both acceptable inside an ADMM loop -- the
   // outer iteration tolerates inexact inner solves. Everything else is not.
   return false;
 }
@@ -28,7 +31,7 @@ bool QpSolution::ok() const noexcept
 DoubleIntegrator::DoubleIntegrator(double dt, int dim)
 : dt_(dt), dim_(dim)
 {
-  // TODO: A = [[I, dt*I], [0, I]], B = [[0.5*dt^2*I], [dt*I]].
+  // TODO(deepseek §9.3): A = [[I, dt*I], [0, I]], B = [[0.5*dt^2*I], [dt*I]].
   throw std::logic_error("not implemented");
 }
 
@@ -40,7 +43,7 @@ const Eigen::MatrixXd & DoubleIntegrator::B() const noexcept { return b_; }
 
 void DoubleIntegrator::predictionMatrices(int, Eigen::MatrixXd &, Eigen::MatrixXd &) const
 {
-  // TODO: Phi row t = A^(t+1); Gamma block (t, s) = A^(t-s) * B for s <= t, else 0.
+  // TODO(deepseek §9.3): Phi row t = A^(t+1); Gamma block (t, s) = A^(t-s) * B for s <= t, else 0.
   // Build A powers iteratively -- recomputing A^k per block is O(H^2) matrix products for
   // no reason. Horizon starts at t = 1, matching the Python reference.
   throw std::logic_error("not implemented");
@@ -60,7 +63,7 @@ void DoubleIntegrator::velocityPredictionMatrices(int, Eigen::MatrixXd &, Eigen:
 
 struct PerAgentQp::Impl
 {
-  // TODO [GUIDE 6.7]: hold
+  // TODO(deepseek §9.3): hold
   //   AgentConfig config; QpSettings settings; DoubleIntegrator model;
   //   std::vector<int> closed_nbhd; std::unordered_map<int, int> block_offset;
   //   Eigen::MatrixXd phi_p, gamma_p, phi_v, gamma_v;
@@ -76,7 +79,7 @@ PerAgentQp::~PerAgentQp() = default;
 
 void PerAgentQp::setup()
 {
-  // TODO: buildHessian(); buildLinearTerm(); buildConstraints(); record
+  // TODO(deepseek §9.3): buildHessian(); buildLinearTerm(); buildConstraints(); record
   // rho_diag_indices; osqp_setup(). Assert P is upper-triangular in CSC form -- OSQP
   // requires that and silently misbehaves if given the full symmetric matrix.
   throw std::logic_error("not implemented");
@@ -86,7 +89,7 @@ bool PerAgentQp::isReady() const noexcept { return false; }
 
 void PerAgentQp::updateInitialState(const Eigen::VectorXd &)
 {
-  // TODO: dynamics rows l = u = Phi_p * x0; velocity rows shift by -/+ Phi_v * x0.
+  // TODO(deepseek §9.3): dynamics rows l = u = Phi_p * x0; velocity rows shift by -/+ Phi_v * x0.
   // One osqp_update_data_vec call with both bound vectors.
   throw std::logic_error("not implemented");
 }
@@ -105,14 +108,14 @@ void PerAgentQp::updateConsensus(
   const std::unordered_map<int, Eigen::VectorXd> &,
   const std::unordered_map<int, Eigen::VectorXd> &, double)
 {
-  // TODO: for each block j, q_block = <static part> - rho * (z[j] - lam[j]).
+  // TODO(deepseek §9.3): for each block j, q_block = <static part> - rho * (z[j] - lam[j]).
   // Keep the static part cached so this is one axpy per block, not a rebuild.
   throw std::logic_error("not implemented");
 }
 
 void PerAgentQp::updateRho(double)
 {
-  // TODO: overwrite P.valuePtr() at rho_diag_indices, then osqp_update_data_mat with the
+  // TODO(deepseek §9.3): overwrite P.valuePtr() at rho_diag_indices, then osqp_update_data_mat with the
   // same index list. Skip the call entirely if rho is unchanged -- it refactorises.
   throw std::logic_error("not implemented");
 }
@@ -152,7 +155,7 @@ double PerAgentQp::localObjective(const Eigen::VectorXd &) const
 
 void PerAgentQp::buildHessian()
 {
-  // TODO: blocks, in the layout from the header:
+  // TODO(deepseek §9.3): blocks, in the layout from the header:
   //   U block            : 2 * (r_input * I + rate-difference term)
   //   self y block       : 2 * (q_position * I + terminal + sum_j w_formation * I) + rho*I
   //   neighbor y blocks  : 2 * w_formation * I + rho*I

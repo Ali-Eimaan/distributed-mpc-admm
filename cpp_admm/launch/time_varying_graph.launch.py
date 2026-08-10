@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Four agents plus a topology publisher that switches the graph on a schedule.
 
     ros2 launch cpp_admm time_varying_graph.launch.py schedule:=split_merge
@@ -44,13 +47,13 @@ def schedule_edges(name: str, n_agents: int, index: int) -> list[tuple[int, int]
         Each edge independently present with probability ``1 - loss_prob``, reseeded per
         switch. Sometimes disconnected, which is the point.
     """
-    # TODO [GUIDE 6.11]: implement all three; keep them deterministic given ``seed``.
+    # TODO(deepseek §11.7): implement all three; keep them deterministic given ``seed``.
     raise NotImplementedError
 
 
 def launch_setup(context, *args, **kwargs):
     """Emit the agent nodes, the graph publisher, and (optionally) the rosbag recorder."""
-    # TODO: reuse build_topology / build_offsets from 4_agent_admm.launch.py rather than
+    # TODO(deepseek §11.7): reuse build_topology / build_offsets from 4_agent_admm.launch.py rather than
     # copying them -- import the module via importlib from the installed share directory,
     # or factor both helpers into a small cpp_admm.launch_utils module. Two divergent
     # copies of the topology definition is exactly the bug this file cannot afford.
@@ -59,6 +62,6 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description() -> LaunchDescription:
     """Declare the arguments in the module docstring, then defer to launch_setup."""
-    # TODO: as in 4_agent_admm.launch.py, plus an ExecuteProcess for
+    # TODO(deepseek §11.7): as in 4_agent_admm.launch.py, plus an ExecuteProcess for
     # `ros2 bag record` gated on the `record` argument.
     raise NotImplementedError

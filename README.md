@@ -2,16 +2,16 @@
 
 Distributed MPC via consensus ADMM for 4-to-8 double-integrator agents in 2D, with formation control and time-varying graphs.
 
-<!-- TODO [GUIDE 11.2]: add badges once CI is green -- test workflow status, Python
-     versions, ROS 2 Jazzy, licence. Do not add a badge before the corresponding job
+<!-- TODO(deepseek §13.5): add badges once CI is green -- test workflow status, Python
+     versions, ROS 2 Lyrical Luth, licence. Do not add a badge before the corresponding job
      passes; a red badge on the first screen is worse than no badge. -->
 
-<!-- TODO: hero GIF here (media/4_agent_formation.gif). The first thing a reader sees must
+<!-- TODO(deepseek §13.5): hero GIF here (media/4_agent_formation.gif). The first thing a reader sees must
      be the system working, not a paragraph. -->
 
 ## What this is
 
-<!-- TODO: three sentences.
+<!-- TODO(deepseek §13.5): three sentences.
      1. The problem: N agents each solving their own MPC, coupled only through formation
         costs, with no central solver anywhere.
      2. The method: general-form consensus ADMM, one neighbor-communication round per
@@ -22,17 +22,17 @@ Distributed MPC via consensus ADMM for 4-to-8 double-integrator agents in 2D, wi
 
 ## Results
 
-<!-- TODO: the numbers table, filled from notebook 05 and analysis/. Suggested columns:
+<!-- TODO(deepseek §13.5): the numbers table, filled from notebook 05 and analysis/. Suggested columns:
      configuration | ADMM iterations to 1e-4 | closed-loop settling (s) | final formation
      error (cm) | per-step wall time (ms). Rows for 4/8 agents across cycle/complete/path.
      Quote the hardware and the solver versions underneath -- timings without them are
      not a claim. -->
 
-<!-- TODO: media/convergence_curves.png -->
+<!-- TODO(deepseek §13.5): media/convergence_curves.png -->
 
 ## Switching topology
 
-<!-- TODO: media/topology_switch.gif plus two sentences on what the split/merge event does
+<!-- TODO(deepseek §13.5): media/topology_switch.gif plus two sentences on what the split/merge event does
      to the formation, and a pointer to docs/derivations/convergence_proof.tex section 7
      for why the standard guarantee does not cover it. -->
 
@@ -58,7 +58,7 @@ pip install -e ".[dev]"
 pytest -m "not slow"
 ```
 
-<!-- TODO: a 10-line runnable snippet that builds a 4-agent square formation and plots the
+<!-- TODO(deepseek §13.5): a 10-line runnable snippet that builds a 4-agent square formation and plots the
      result. It must run verbatim on a clean install -- copy it out of notebook 02 and
      actually execute it before committing. -->
 
@@ -69,19 +69,19 @@ colcon build --packages-select cpp_admm
 ros2 launch cpp_admm 4_agent_admm.launch.py
 ```
 
-<!-- TODO: note the ROS 2 Jazzy + OSQP + Eigen prerequisites and how to get osqp_vendor if
+<!-- TODO(deepseek §13.5): note the ROS 2 Lyrical Luth + OSQP + Eigen prerequisites and how to get osqp_vendor if
      rosdep cannot resolve it. -->
 
 ## Method
 
-<!-- TODO: the algorithm block (x-update / z-update / dual update) in three lines of
+<!-- TODO(deepseek §13.5): the algorithm block (x-update / z-update / dual update) in three lines of
      display math, then one sentence naming the only quantity that crosses the network:
      a (T x 2) trajectory block per neighbor per iteration. Link to
      docs/README_math.md and the derivations for everything else. -->
 
 ## What this does not do
 
-<!-- TODO: be explicit and put it above the fold-fold, not in a footnote.
+<!-- TODO(deepseek §13.5): be explicit and put it above the fold-fold, not in a footnote.
      - no obstacle or inter-agent collision avoidance (the coupling is formation cost only)
      - no terminal set or terminal cost, so no recursive-feasibility or stability guarantee
        -- stability is demonstrated numerically
@@ -93,7 +93,7 @@ ros2 launch cpp_admm 4_agent_admm.launch.py
 
 ## Citation hook
 
-<!-- TODO: one paragraph. The ADMM kernel is the distributed solver inside
+<!-- TODO(deepseek §13.5): one paragraph. The ADMM kernel is the distributed solver inside
      `transition-viable-swarm`. The gap identified in convergence_proof.tex section 7 --
      that the guarantee assumes a fixed graph and synchronous updates -- is what motivates
      the AHTD object in the thesis proposal. Keep it factual: this repo demonstrates the
@@ -101,9 +101,9 @@ ros2 launch cpp_admm 4_agent_admm.launch.py
 
 ## References
 
-<!-- TODO: Boyd et al. 2011, Stellato et al. 2020 (OSQP), plus the switching-topology
+<!-- TODO(deepseek §13.5): Boyd et al. 2011, Stellato et al. 2020 (OSQP), plus the switching-topology
      consensus reference. Full citations. -->
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+BSD-3-Clause — see [LICENSE](LICENSE).

@@ -1,16 +1,19 @@
-cmake_minimum_required(VERSION 3.16)
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
+cmake_minimum_required(VERSION 3.22...3.31)
 project(cpp_admm)
 
-# TODO [GUIDE 6.1]: this file is complete enough to configure; verify it builds once the
+# TODO(deepseek §3.2): this file is complete enough to configure; verify it builds once the
 # sources compile, and delete this comment.
 
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_CXX_STANDARD 20)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Wconversion)
 endif()
 
 find_package(ament_cmake REQUIRED)
@@ -52,7 +55,8 @@ endif()
 
 add_executable(consensus_node src/consensus_node.cpp)
 target_link_libraries(consensus_node PRIVATE admm_kernel)
-ament_target_dependencies(consensus_node rclcpp geometry_msgs std_msgs)
+target_link_libraries(consensus_node PRIVATE
+  ${rclcpp_TARGETS} ${geometry_msgs_TARGETS} ${std_msgs_TARGETS})
 
 # ------------------------------------------------------------------------------ tests
 

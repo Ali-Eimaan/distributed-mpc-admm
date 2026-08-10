@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Figures and animations for the README, notebooks, and analysis studies.
 
 Every function takes an optional ``ax`` and returns the ``Axes`` (or ``Figure``) it drew

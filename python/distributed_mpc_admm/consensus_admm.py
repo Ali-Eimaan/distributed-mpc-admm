@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """General-form consensus ADMM over a communication graph, and the closed-loop driver.
 
 Algorithm (scaled dual form, Boyd et al. 2011, sections 7.2 and 3.4.1)
@@ -239,7 +242,7 @@ class ConsensusADMM:
         options: ADMMOptions | None = None,
         channel: LossyChannel | None = None,
     ) -> None:
-        # TODO [GUIDE 5.2]: store the graph, validate that solvers cover every agent,
+        # TODO(deepseek §6.2): store the graph, validate that solvers cover every agent,
         # allocate the (y, z, lam) dicts and the "last known z" cache used under packet loss.
         raise NotImplementedError
 
@@ -459,7 +462,7 @@ class DistributedMPC:
         leader_follower: LeaderFollowerSpec | None = None,
         channel: LossyChannel | None = None,
     ) -> None:
-        # TODO [GUIDE 5.6]: build one CvxpyAgentSolver per agent and cache them keyed by
+        # TODO(deepseek §8.2): build one CvxpyAgentSolver per agent and cache them keyed by
         # (agent_id, neighborhood) so a topology switch only rebuilds the affected agents.
         raise NotImplementedError
 

@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Formation specifications expressed in an ADMM-compatible (separable) form.
 
 Three formation modes are supported, all reducing to *relative-position* terms so that

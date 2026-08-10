@@ -1,8 +1,11 @@
+% Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+% SPDX-License-Identifier: BSD-3-Clause
+
 % Consensus ADMM for distributed MPC, derived from the augmented Lagrangian.
 %
 % Depends on augmented_lagrangian.tex. Compile: latexmk -pdf consensus_admm_derivation.tex
 %
-% TODO [GUIDE 9.4]: this is the centrepiece document -- an advisor who reads one file in
+% TODO(deepseek §13.2): this is the centrepiece document -- an advisor who reads one file in
 % this repo reads this one. Every update equation here must match
 % python/distributed_mpc_admm/consensus_admm.py line for line.
 
@@ -17,28 +20,28 @@
 \maketitle
 
 \begin{abstract}
-% TODO: three sentences. The coupled multi-agent MPC problem, the local-copy splitting,
+% TODO(deepseek §13.2): three sentences. The coupled multi-agent MPC problem, the local-copy splitting,
 % and the resulting neighbor-only iteration.
 \end{abstract}
 
 \section{The coupled problem}
-% TODO: $N$ double integrators, per-agent tracking and effort costs, formation edge costs
+% TODO(deepseek §13.2): $N$ double integrators, per-agent tracking and effort costs, formation edge costs
 % over $\mathcal{E}$, per-agent dynamics and box constraints. Write it as a single QP and
 % give its dimension as a function of $(N, T)$.
 
 \section{Where the coupling lives}
-% TODO: show that the only inseparable terms are the edge costs
+% TODO(deepseek §13.2): show that the only inseparable terms are the edge costs
 % $\|(p_i - p_j) - d_{ij}\|^2$. Everything else already decomposes. Making this explicit is
 % what tells the reader which variables need copying.
 
 \section{Local copies}
-% TODO: introduce $y_i^j$ for $j \in \bar{\mathcal{N}}_i$ and the global variables $z^j$.
+% TODO(deepseek §13.2): introduce $y_i^j$ for $j \in \bar{\mathcal{N}}_i$ and the global variables $z^j$.
 % State and prove the equivalence lemma: the copy-based problem with constraints
 % $y_i^j = z^j$ has the same solution set as the coupled problem. One paragraph; it is
 % immediate, but it is the step that licenses the whole method.
 
 \section{Augmented Lagrangian and the three updates}
-% TODO: write $L_\rho$, then derive each update by holding the others fixed:
+% TODO(deepseek §13.2): write $L_\rho$, then derive each update by holding the others fixed:
 %   (a) $x$-update: the per-agent QP, stated in full, with the observation that it
 %       decomposes because both $f_i$ and the penalty are separable across $i$
 %   (b) $z$-update: derive the closed form. Set the gradient to zero and obtain the
@@ -48,29 +51,29 @@
 %   (c) dual update
 
 \section{Scaled form and the final algorithm}
-% TODO: the scaled-dual iteration as a numbered algorithm block. This block is the
+% TODO(deepseek §13.2): the scaled-dual iteration as a numbered algorithm block. This block is the
 % specification the code implements; keep it verbatim-comparable.
 
 \section{Over-relaxation}
-% TODO: the $\alpha$ step, the admissible range $\alpha \in (0, 2)$, and why $1.5$--$1.8$
+% TODO(deepseek §13.2): the $\alpha$ step, the admissible range $\alpha \in (0, 2)$, and why $1.5$--$1.8$
 % is the practical choice.
 
 \section{Residuals and stopping}
-% TODO: primal and dual residual definitions, the tolerance formulas, and the counting
+% TODO(deepseek §13.2): primal and dual residual definitions, the tolerance formulas, and the counting
 % argument behind $n_{\mathrm{dual}} = \sum_i |\bar{\mathcal{N}}_i| \, T \, d$.
 
 \section{Communication and computation cost}
-% TODO: per iteration, per agent: one QP of size $(1 + |\bar{\mathcal{N}}_i|)Td$ and
+% TODO(deepseek §13.2): per iteration, per agent: one QP of size $(1 + |\bar{\mathcal{N}}_i|)Td$ and
 % $2|\mathcal{N}_i|$ messages of $Td$ floats. Contrast with the centralised QP size.
 
 \section{Receding horizon}
-% TODO: the closed loop, the warm-start shift, and an honest statement about recursive
+% TODO(deepseek §13.2): the closed loop, the warm-start shift, and an honest statement about recursive
 % feasibility: the box constraints make each local problem always feasible, but no terminal
 % ingredient is imposed, so stability is demonstrated numerically rather than guaranteed.
 % Say that plainly here -- an advisor will check for exactly this claim.
 
 \section{Worked example}
-% TODO: two agents, $T = 2$, all matrices written out numerically, three iterations by
+% TODO(deepseek §13.2): two agents, $T = 2$, all matrices written out numerically, three iterations by
 % hand. Tedious to write and disproportionately convincing to read.
 
 \bibliographystyle{plain}

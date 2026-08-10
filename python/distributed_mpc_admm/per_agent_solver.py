@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Double-integrator prediction model and the per-agent local QP.
 
 This module owns the "x-update" of consensus ADMM: given the consensus trajectories
@@ -282,7 +285,7 @@ class CvxpyAgentSolver(PerAgentSolver):
         solver: str = "OSQP",
         solver_options: dict[str, object] | None = None,
     ) -> None:
-        # TODO [GUIDE 4.3]: build the parametrised problem here. Concretely:
+        # TODO(deepseek §5.4): build the parametrised problem here. Concretely:
         #   1. variables: U (T, dim); y = {j: cp.Variable((T, dim)) for j in neighborhood}
         #   2. parameters: x0_p (2*dim,), ref_p (T, dim), rho_p (nonneg scalar),
         #      z_p[j] (T, dim), lam_p[j] (T, dim), u_prev_p (dim,)

@@ -8,7 +8,7 @@
     ZeroMQ transport, one process per agent.
   </description>
   <maintainer email="ali.eimaan@icloud.com">M. Ali Eiman</maintainer>
-  <license>MIT</license>
+  <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

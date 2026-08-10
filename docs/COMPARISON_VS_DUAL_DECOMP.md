@@ -1,20 +1,20 @@
 # ADMM vs dual decomposition
 
-<!-- TODO [GUIDE 9.2]: this document must contain measured numbers from this repo, not
+<!-- TODO(deepseek §13.3): this document must contain measured numbers from this repo, not
      only textbook claims. Implement the dual-decomposition baseline described in section 3
      and populate the table in section 5 with real data. A comparison document with
      hand-waved numbers is worse than none. -->
 
 ## 1. The question
 
-<!-- TODO: both methods split the same coupled problem across the same graph and both need
+<!-- TODO(deepseek §13.3): both methods split the same coupled problem across the same graph and both need
      one round of neighbor communication per iteration. State precisely what differs
      (the augmented term), and why that difference matters more in practice than the
      iteration-complexity bounds suggest. -->
 
 ## 2. Dual decomposition
 
-<!-- TODO: the Lagrangian without the quadratic term, the subgradient dual ascent step,
+<!-- TODO(deepseek §13.3): the Lagrangian without the quadratic term, the subgradient dual ascent step,
      the step-size condition, and the two structural weaknesses:
        - requires strictly convex f_i, or the inner problem is unbounded / multi-valued
        - step size must be tuned to a Lipschitz constant nobody knows a priori
@@ -23,14 +23,14 @@
 
 ## 3. Baseline implementation
 
-<!-- TODO: implement dual decomposition in the notebooks against the *same* problem
+<!-- TODO(deepseek §13.3): implement dual decomposition in the notebooks against the *same* problem
      instances used in 05_convergence_analysis.ipynb, reusing PerAgentSolver with
      rho = 0 and a dual-ascent outer loop. Same seeds, same tolerances, same hardware.
      Anything less makes the comparison unfalsifiable. -->
 
 ## 4. What to measure
 
-<!-- TODO:
+<!-- TODO(deepseek §13.3):
      - iterations to 1e-4 across topologies and N
      - sensitivity to the tuning parameter (rho vs step size) -- plot both U-curves on
        one axis; the width of the good region is the real result
@@ -42,7 +42,7 @@
 
 ## 5. Results
 
-<!-- TODO: fill from the notebook. Suggested shape:
+<!-- TODO(deepseek §13.3): fill from the notebook. Suggested shape:
 
 | Problem | ADMM iters | Dual decomp iters | ADMM wall (ms) | Dual wall (ms) |
 | --- | --- | --- | --- | --- |
@@ -55,7 +55,7 @@
 
 ## 6. When dual decomposition still wins
 
-<!-- TODO: be fair. It has cheaper iterations, no rho to tune when the Lipschitz constant
+<!-- TODO(deepseek §13.3): be fair. It has cheaper iterations, no rho to tune when the Lipschitz constant
      is genuinely known, a smaller memory footprint, and it parallelises across constraints
      rather than across agents. Name the regimes where those matter. A comparison that
      concludes "the method I implemented is better in every case" reads as advocacy and
@@ -63,10 +63,10 @@
 
 ## 7. Verdict for this repo
 
-<!-- TODO: state the choice and the reason, in three sentences, referring to the measured
+<!-- TODO(deepseek §13.3): state the choice and the reason, in three sentences, referring to the measured
      table rather than to the literature. -->
 
 ## References
 
-<!-- TODO: Boyd et al. 2011 sections 2 and 7; Everett 1963 / Danzig-Wolfe for the origin
+<!-- TODO(deepseek §13.3): Boyd et al. 2011 sections 2 and 7; Everett 1963 / Danzig-Wolfe for the origin
      of dual decomposition; a distributed-MPC survey for the application context. -->

@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Interaction topologies for consensus ADMM: static, time-varying, and lossy.
 
 The ADMM iteration needs three things from this module:
@@ -51,7 +54,7 @@ class CommunicationGraph:
         edges: Iterable[tuple[int, int]] = (),
         weights: dict[tuple[int, int], float] | None = None,
     ) -> None:
-        # TODO [GUIDE 3.1]: validate n_agents >= 1; normalise every edge to (min, max);
+        # TODO(deepseek §4.1): validate n_agents >= 1; normalise every edge to (min, max);
         # reject self-loops and out-of-range ids; store as a frozenset plus a cached
         # dense adjacency matrix. Invalidate the adjacency/Laplacian caches in add_edge
         # and remove_edge.
@@ -216,7 +219,7 @@ class TimeVaryingGraph:
         mode: str = "hold",
     ) -> None:
         """``mode`` is one of ``"hold"`` (repeat last) or ``"cycle"`` (wrap around)."""
-        # TODO [GUIDE 3.3]: normalise both construction modes to a single internal
+        # TODO(deepseek §4.4): normalise both construction modes to a single internal
         # callable ``self._fn``; validate that every graph in a sequence has the same
         # n_agents; cache lookups in a dict keyed by k.
         raise NotImplementedError
@@ -323,7 +326,7 @@ class LossyChannel:
         max_delay: int = 0,
         rng: np.random.Generator | int | None = None,
     ) -> None:
-        # TODO [GUIDE 3.4]: store a per-(receiver, subject) mailbox holding the latest
+        # TODO(deepseek §4.5): store a per-(receiver, subject) mailbox holding the latest
         # arrived Message; store an in-flight priority queue keyed by arrival iteration.
         raise NotImplementedError
 

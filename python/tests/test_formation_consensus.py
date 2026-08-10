@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Formation geometry, leader-follower behaviour, and closed-loop convergence.
 
 Where ``test_admm_convergence.py`` tests the optimiser, this file tests that the

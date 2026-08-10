@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Launch four ConsensusNode processes on a cycle topology, square formation.
 
     ros2 launch cpp_admm 4_agent_admm.launch.py
@@ -33,13 +36,13 @@ def build_topology(name: str, n_agents: int) -> list[tuple[int, int]]:
     Python demos are compared against each other, and a differently-numbered cycle would
     make that comparison meaningless.
     """
-    # TODO [GUIDE 6.10]: cycle / complete / path / star.
+    # TODO(deepseek §11.6): cycle / complete / path / star.
     raise NotImplementedError
 
 
 def build_offsets(name: str, n_agents: int, scale: float) -> dict[int, tuple[float, float]]:
     """Per-agent anchor offsets, mirroring ``FormationSpec`` factories."""
-    # TODO: square -> regular_polygon(4); line -> line(); v -> v_shape().
+    # TODO(deepseek §11.6): square -> regular_polygon(4); line -> line(); v -> v_shape().
     raise NotImplementedError
 
 
@@ -47,7 +50,7 @@ def flatten_neighbor_offsets(
     agent: int, neighbors: list[int], offsets: dict[int, tuple[float, float]]
 ) -> list[float]:
     """Flatten ``d_ij = o_i - o_j`` into the ``[j, dx, dy, ...]`` triple list the node parses."""
-    # TODO: keep the ordering sorted by neighbor id so the parameter dump is diffable.
+    # TODO(deepseek §11.6): keep the ordering sorted by neighbor id so the parameter dump is diffable.
     raise NotImplementedError
 
 
@@ -57,7 +60,7 @@ def launch_setup(context, *args, **kwargs):
     An OpaqueFunction is required because the edge list depends on the *value* of
     ``n_agents``, which is not available at description-build time.
     """
-    # TODO: read the arguments via LaunchConfiguration(...).perform(context);
+    # TODO(deepseek §11.6): read the arguments via LaunchConfiguration(...).perform(context);
     # build the topology and offsets; emit a Node per agent with:
     #   package="cpp_admm", executable="consensus_node",
     #   name=f"agent_{i}", namespace=f"/agent_{i}", output="screen",
@@ -68,6 +71,6 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description() -> LaunchDescription:
     """Declare the arguments listed in the module docstring, then defer to launch_setup."""
-    # TODO: DeclareLaunchArgument for each entry, then
+    # TODO(deepseek §11.6): DeclareLaunchArgument for each entry, then
     # return LaunchDescription([...args..., OpaqueFunction(function=launch_setup)]).
     raise NotImplementedError

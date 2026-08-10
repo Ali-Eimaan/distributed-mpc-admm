@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Convergence properties of the consensus ADMM loop.
 
 These tests are the contract for :mod:`distributed_mpc_admm.consensus_admm`. They are

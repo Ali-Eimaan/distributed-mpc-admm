@@ -1,9 +1,12 @@
+% Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+% SPDX-License-Identifier: BSD-3-Clause
+
 % Convergence of consensus ADMM, in this repo's notation, with the assumptions that fail
 % under switching topology identified explicitly.
 %
 % Depends on consensus_admm_derivation.tex. Compile: latexmk -pdf convergence_proof.tex
 %
-% TODO [GUIDE 9.5]: Section 7 is the reason this document exists and is the direct hook
+% TODO(deepseek §13.2): Section 7 is the reason this document exists and is the direct hook
 % into the thesis proposal. Write the standard proof carefully, then be precise and
 % unsparing about what it does not cover. Do not claim any result the experiments do not
 % support.
@@ -19,13 +22,13 @@
 \maketitle
 
 \begin{abstract}
-% TODO: state the classical result, then state the gap: the proof assumes a fixed
+% TODO(deepseek §13.2): state the classical result, then state the gap: the proof assumes a fixed
 % constraint set and synchronous updates, and a switching communication graph violates
 % both. This repo measures the consequences; characterising them is thesis work.
 \end{abstract}
 
 \section{Assumptions}
-% TODO: number them A1--A5 and refer to them by number for the rest of the document.
+% TODO(deepseek §13.2): number them A1--A5 and refer to them by number for the rest of the document.
 %   A1  each $f_i$ closed, proper, convex
 %   A2  the unaugmented Lagrangian has a saddle point
 %   A3  the communication graph is fixed and connected
@@ -34,33 +37,33 @@
 % A3--A5 are the ones this repo breaks; flag that here so the reader knows where it is going.
 
 \section{The Lyapunov function}
-% TODO: $V^k = \tfrac{1}{\rho}\|\lambda^k - \lambda^\star\|^2 + \rho\|z^k - z^\star\|^2$.
+% TODO(deepseek §13.2): $V^k = \tfrac{1}{\rho}\|\lambda^k - \lambda^\star\|^2 + \rho\|z^k - z^\star\|^2$.
 % Motivate it before using it.
 
 \section{Monotone decrease}
-% TODO: the three inequalities from optimality of the $x$- and $z$-updates plus the dual
+% TODO(deepseek §13.2): the three inequalities from optimality of the $x$- and $z$-updates plus the dual
 % update, combined into $V^{k+1} \le V^k - \rho\|r^k\|^2 - \rho\|s^k\|^2$. Show the steps;
 % this is the technical core.
 
 \section{Convergence of residuals and objective}
-% TODO: summability of the residuals, $r^k \to 0$, $s^k \to 0$, objective convergence, and
+% TODO(deepseek §13.2): summability of the residuals, $r^k \to 0$, $s^k \to 0$, objective convergence, and
 % dual convergence. State the $O(1/k)$ ergodic rate.
 
 \section{Linear rate under strong convexity}
-% TODO: add strong convexity of $f_i$ and Lipschitz $\nabla f_i$; state the linear rate and
+% TODO(deepseek §13.2): add strong convexity of $f_i$ and Lipschitz $\nabla f_i$; state the linear rate and
 % carry through the dependence on the graph via $\lambda_2(L)$ and $\lambda_{\max}(L)$.
 % Give the optimal $\rho$ that the bound implies and compare it to the empirical optimum
 % measured in notebook 05 -- a stated bound with a measured comparison is worth far more
 % than the bound alone.
 
 \section{Specialisation to this problem}
-% TODO: verify A1--A2 for the MPC problem: the local QPs are strongly convex when
+% TODO(deepseek §13.2): verify A1--A2 for the MPC problem: the local QPs are strongly convex when
 % $r_{\mathrm{input}} > 0$, feasibility is guaranteed by the box constraints, and a saddle
 % point exists. Then compute the actual condition number for the 4-agent square example and
 % evaluate the rate bound numerically.
 
 \section{What breaks under switching topology}
-% TODO: the payload of this document. Treat each violated assumption separately:
+% TODO(deepseek §13.2): the payload of this document. Treat each violated assumption separately:
 %
 %   A3 (fixed graph). When $\bar{\mathcal{N}}_i$ changes, the *decision variable* changes
 %   dimension. $V^k$ is defined on a space that no longer exists, so monotone decrease does
@@ -83,7 +86,7 @@
 % Label it as such.
 
 \section{Open questions}
-% TODO: three or four sharply stated questions, each of which a chapter could answer.
+% TODO(deepseek §13.2): three or four sharply stated questions, each of which a chapter could answer.
 % These are what an advisor actually reads this document for.
 
 \bibliographystyle{plain}

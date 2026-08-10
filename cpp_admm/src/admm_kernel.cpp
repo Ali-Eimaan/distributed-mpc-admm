@@ -1,3 +1,6 @@
+// Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+// SPDX-License-Identifier: BSD-3-Clause
+
 // Implementation of the transport-agnostic consensus-ADMM kernel.
 //
 // See admm_kernel.hpp for the contract and docs/derivations/consensus_admm_derivation.tex
@@ -17,7 +20,7 @@ namespace cpp_admm
 
 std::size_t NeighborMessage::byte_size() const noexcept
 {
-  // TODO [GUIDE 6.2]: header fields + payload.size() * sizeof(double).
+  // TODO(deepseek §9.7): header fields + payload.size() * sizeof(double).
   throw std::logic_error("not implemented");
 }
 
@@ -25,14 +28,14 @@ std::size_t NeighborMessage::byte_size() const noexcept
 
 std::vector<int> AgentConfig::closed_neighborhood() const
 {
-  // TODO: neighbors + {agent_id}, sorted ascending. This ordering is load-bearing --
+  // TODO(deepseek §9.5): neighbors + {agent_id}, sorted ascending. This ordering is load-bearing --
   // it defines the QP block layout, so sort it here and never re-derive it elsewhere.
   throw std::logic_error("not implemented");
 }
 
 void AgentConfig::validate() const
 {
-  // TODO: agent_id in [0, n_agents); no self in neighbors; no duplicates; horizon > 0;
+  // TODO(deepseek §9.5): agent_id in [0, n_agents); no self in neighbors; no duplicates; horizon > 0;
   // dim in {2, 3}; dt > 0; all weights >= 0; every offsets key is a neighbor and has
   // size dim.
   throw std::logic_error("not implemented");
@@ -42,14 +45,14 @@ void AgentConfig::validate() const
 
 void ADMMStats::reset() noexcept
 {
-  // TODO: zero every field except rho, which keeps its adapted value across control steps.
+  // TODO(deepseek §9.5): zero every field except rho, which keeps its adapted value across control steps.
 }
 
 // -------------------------------------------------------------- InProcessTransport
 
 struct InProcessTransport::Impl
 {
-  // TODO [GUIDE 6.3]: agent id, RNG, per-kind inbox deques, static peer registry,
+  // TODO(deepseek §9.8): agent id, RNG, per-kind inbox deques, static peer registry,
   // delay queue of (arrival_iteration, message).
 };
 
@@ -78,7 +81,7 @@ void InProcessTransport::connect(const std::vector<InProcessTransport *> &)
 
 struct ZeroMqTransport::Impl
 {
-  // TODO [GUIDE 6.4]: zmq::context_t, one PUB socket bound to bind_endpoint, one SUB
+  // TODO(deepseek §9.9): zmq::context_t, one PUB socket bound to bind_endpoint, one SUB
   // socket connected to every neighbor endpoint, topic strings precomputed per (kind,
   // subject). Set ZMQ_CONFLATE on the SUB socket: only the newest iterate is ever useful,
   // and an unbounded queue turns packet backlog into unbounded staleness.
@@ -104,7 +107,7 @@ void ZeroMqTransport::flush() { throw std::logic_error("not implemented"); }
 
 struct AdmmKernel::Impl
 {
-  // TODO [GUIDE 6.5]: hold
+  // TODO(deepseek §9.5): hold
   //   AgentConfig config; ADMMOptions options; ITransport * transport;
   //   std::unique_ptr<PerAgentQp> qp;
   //   std::vector<int> closed_nbhd;                 // block ordering
@@ -121,7 +124,7 @@ AdmmKernel::~AdmmKernel() = default;
 
 void AdmmKernel::configure()
 {
-  // TODO: config.validate(); build closed_nbhd; allocate all maps and vectors; reserve
+  // TODO(deepseek §9.5): config.validate(); build closed_nbhd; allocate all maps and vectors; reserve
   // rx_buffer to |closed_nbhd|; construct and set up the PerAgentQp.
   throw std::logic_error("not implemented");
 }
@@ -143,28 +146,28 @@ void AdmmKernel::setOffsets(const std::unordered_map<int, Eigen::VectorXd> &)
 
 void AdmmKernel::setNeighbors(const std::vector<int> &)
 {
-  // TODO: preserve y/lam entries for surviving neighbors, drop the rest, zero-init new
+  // TODO(deepseek §9.5): preserve y/lam entries for surviving neighbors, drop the rest, zero-init new
   // ones, then rebuild the QP. Reallocates -- document it at every call site.
   throw std::logic_error("not implemented");
 }
 
 bool AdmmKernel::iterate()
 {
-  // TODO: xUpdate -> relax -> exchangeLocalCopies -> zUpdate -> broadcastConsensus ->
+  // TODO(deepseek §9.5): xUpdate -> relax -> exchangeLocalCopies -> zUpdate -> broadcastConsensus ->
   // dualUpdate -> computeResiduals -> updateRho (if enabled). Return the convergence test.
   throw std::logic_error("not implemented");
 }
 
 const ADMMStats & AdmmKernel::solve()
 {
-  // TODO: stats.reset(); loop iterate() to convergence or max_iterations; on
+  // TODO(deepseek §9.5): stats.reset(); loop iterate() to convergence or max_iterations; on
   // max_staleness_seen > options.max_staleness, break early with converged = false.
   throw std::logic_error("not implemented");
 }
 
 void AdmmKernel::shiftWarmStart()
 {
-  // TODO: drop the first (dim) entries of every trajectory block, repeat the last one.
+  // TODO(deepseek §9.5): drop the first (dim) entries of every trajectory block, repeat the last one.
   // Shift lam the same way -- zeroing the duals discards most of the warm-start benefit.
   throw std::logic_error("not implemented");
 }
@@ -199,7 +202,7 @@ void AdmmKernel::setControlStep(int64_t) noexcept { }
 
 void AdmmKernel::xUpdate()
 {
-  // TODO: qp->updateInitialState / updateConsensus (and updateRho only when rho changed);
+  // TODO(deepseek §9.5): qp->updateInitialState / updateConsensus (and updateRho only when rho changed);
   // qp->solve(); split the primal into inputs_ and the y_ blocks. On a non-ok status,
   // hold the previous y and record it -- do not propagate NaNs into the consensus step.
   throw std::logic_error("not implemented");
@@ -209,7 +212,7 @@ void AdmmKernel::relax() { throw std::logic_error("not implemented"); }
 
 void AdmmKernel::exchangeLocalCopies()
 {
-  // TODO: publish y_hat^j to each neighbor j (kLocalCopy, subject = j); poll for messages
+  // TODO(deepseek §9.5): publish y_hat^j to each neighbor j (kLocalCopy, subject = j); poll for messages
   // whose subject == agent_id; drop any whose control_step is not current. Missing
   // contributions are excluded from the z average, never replaced by stale values.
   throw std::logic_error("not implemented");
@@ -217,7 +220,7 @@ void AdmmKernel::exchangeLocalCopies()
 
 void AdmmKernel::zUpdate()
 {
-  // TODO: z_self_prev = z_self; z_self = mean over received (y_hat_k^i + lam_k^i)
+  // TODO(deepseek §9.5): z_self_prev = z_self; z_self = mean over received (y_hat_k^i + lam_k^i)
   // including this agent's own contribution. Divisor is the number of *received*
   // contributions, not |closed_nbhd|.
   throw std::logic_error("not implemented");
@@ -225,7 +228,7 @@ void AdmmKernel::zUpdate()
 
 void AdmmKernel::broadcastConsensus()
 {
-  // TODO: publish z_self (kConsensus, subject = agent_id); poll for z^j from each
+  // TODO(deepseek §9.5): publish z_self (kConsensus, subject = agent_id); poll for z^j from each
   // neighbor. Here a miss *does* fall back to the cached last-known z^j; bump
   // stats.max_staleness_seen by (current_iteration - last_seen_iteration[j]).
   throw std::logic_error("not implemented");
@@ -235,7 +238,7 @@ void AdmmKernel::dualUpdate() { throw std::logic_error("not implemented"); }
 
 void AdmmKernel::computeResiduals()
 {
-  // TODO: primal over this agent's own blocks only (each agent computes its local
+  // TODO(deepseek §9.5): primal over this agent's own blocks only (each agent computes its local
   // contribution; the node publishes it in diagnostics and a monitor sums them offline).
   // The kernel must not need the global residual to decide when to stop -- use the local
   // one, which is what a real agent has.
@@ -244,7 +247,7 @@ void AdmmKernel::computeResiduals()
 
 void AdmmKernel::updateRho()
 {
-  // TODO: residual balancing; on a change, rescale every lam by the reciprocal factor and
+  // TODO(deepseek §9.5): residual balancing; on a change, rescale every lam by the reciprocal factor and
   // call qp->updateRho. Clamp to [rho_min, rho_max].
   throw std::logic_error("not implemented");
 }

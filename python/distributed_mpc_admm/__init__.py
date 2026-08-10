@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Distributed MPC via consensus ADMM for double-integrator agents in 2D.
 
 This package is the *pedagogy-first* reference implementation. It is deliberately
@@ -60,7 +63,7 @@ __all__ = [
     "__version__",
 ]
 
-# TODO [GUIDE 2.1]: re-export the public names above once the modules are implemented, e.g.
+# TODO(deepseek §3.5): re-export the public names above once the modules are implemented, e.g.
 #     from .communication_graph import CommunicationGraph, LossyChannel, TimeVaryingGraph
 #     from .consensus_admm import ADMMHistory, ADMMOptions, ADMMResult, ConsensusADMM, ...
 #     from .formation_constraints import FormationSpec, LeaderFollowerSpec

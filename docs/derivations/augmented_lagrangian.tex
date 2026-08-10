@@ -1,9 +1,12 @@
+% Copyright (c) 2026, Ali-Eimaan. All rights reserved.
+% SPDX-License-Identifier: BSD-3-Clause
+
 % Augmented Lagrangian: the object every other derivation in this directory builds on.
 %
 % Compile:  latexmk -pdf augmented_lagrangian.tex
 % Shared preamble/macros live in preamble.tex; do not redefine macros locally.
 %
-% TODO [GUIDE 9.3]: write the sections below. Keep every symbol consistent with
+% TODO(deepseek §13.2): write the sections below. Keep every symbol consistent with
 % docs/README_math.md section 1.
 
 \documentclass[11pt]{article}
@@ -17,43 +20,43 @@
 \maketitle
 
 \begin{abstract}
-% TODO: two sentences. What the augmented Lagrangian is, and why the quadratic term buys
+% TODO(deepseek §13.2): two sentences. What the augmented Lagrangian is, and why the quadratic term buys
 % convergence without requiring strict convexity of $f$.
 \end{abstract}
 
 \section{Setup}
-% TODO: equality-constrained convex program $\min f(x)$ s.t. $Ax = b$. State the standing
+% TODO(deepseek §13.2): equality-constrained convex program $\min f(x)$ s.t. $Ax = b$. State the standing
 % assumptions ($f$ closed proper convex, a saddle point exists) and note exactly where each
 % is used later.
 
 \section{From the Lagrangian to dual ascent}
-% TODO: ordinary Lagrangian, the dual function, dual ascent, and the step-size condition.
+% TODO(deepseek §13.2): ordinary Lagrangian, the dual function, dual ascent, and the step-size condition.
 % Then the two failure modes: the inner problem is unbounded when $f$ is merely convex, and
 % the step size depends on a Lipschitz constant that is unknown in practice.
 
 \section{The augmented Lagrangian}
-% TODO: add $\tfrac{\rho}{2}\|Ax - b\|_2^2$. Show that it does not change the solution set
+% TODO(deepseek §13.2): add $\tfrac{\rho}{2}\|Ax - b\|_2^2$. Show that it does not change the solution set
 % (the added term vanishes at feasibility), and that it makes the dual function
 % differentiable with a $1/\rho$-Lipschitz gradient. This is the whole reason the method
 % works and it deserves a full paragraph, not a citation.
 
 \section{Method of multipliers}
-% TODO: the two-step iteration. Derive why the dual step size $\rho$ is exactly the penalty
+% TODO(deepseek §13.2): the two-step iteration. Derive why the dual step size $\rho$ is exactly the penalty
 % parameter -- this equivalence is what makes the choice of $\rho$ self-tuning and is
 % usually asserted rather than shown.
 
 \section{Why the method of multipliers does not split}
-% TODO: the joint minimisation over $x$ couples the blocks even when $f$ is separable.
+% TODO(deepseek §13.2): the joint minimisation over $x$ couples the blocks even when $f$ is separable.
 % This is the precise gap that ADMM closes, and it motivates the next document.
 
 \section{Scaled dual form}
-% TODO: complete the square, substitute $\lambda = u/\rho$, and state the resulting
+% TODO(deepseek §13.2): complete the square, substitute $\lambda = u/\rho$, and state the resulting
 % iteration. Note that the code stores the *scaled* dual, so any change to $\rho$ must
 % rescale $\lambda$ -- flag it here because it is the bug that adaptive-rho implementations
 % get wrong.
 
 \section{Interpretation}
-% TODO: proximal-point view and the primal-dual interpretation. Keep it short.
+% TODO(deepseek §13.2): proximal-point view and the primal-dual interpretation. Keep it short.
 
 \bibliographystyle{plain}
 \bibliography{references}

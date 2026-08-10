@@ -1,6 +1,6 @@
 # Mathematical reference
 
-<!-- TODO [GUIDE 9.1]: fill every section. Keep notation identical to the code and to
+<!-- TODO(deepseek §13.1): fill every section. Keep notation identical to the code and to
      docs/derivations/*.tex. Every symbol used here must appear in the table below. -->
 
 Single source of truth for notation. If a symbol here disagrees with the code, the code is
@@ -26,50 +26,50 @@ wrong.
 | $L$ | `laplacian()` | $(N, N)$ | graph Laplacian |
 | $\lambda_2$ | `algebraic_connectivity()` | — | Fiedler value |
 
-<!-- TODO: extend as needed; do not introduce a symbol in a .tex file without adding it
+<!-- TODO(deepseek §13.1): extend as needed; do not introduce a symbol in a .tex file without adding it
      here first. -->
 
 ## 2. Agent model
 
-<!-- TODO: continuous double integrator, ZOH discretisation, the exact A and B, and the
+<!-- TODO(deepseek §13.1): continuous double integrator, ZOH discretisation, the exact A and B, and the
      condensed prediction X = Phi x0 + Gamma U with the t = 1..T indexing convention
      stated explicitly. That convention is the single most common source of off-by-one
      bugs in this repo -- write it down here and cite this section from the code. -->
 
 ## 3. The coupled MPC problem
 
-<!-- TODO: the centralised problem first: sum of per-agent tracking and effort costs plus
+<!-- TODO(deepseek §13.1): the centralised problem first: sum of per-agent tracking and effort costs plus
      formation edge costs, subject to per-agent dynamics and box constraints. Show that it
      is a single convex QP, and give its size as a function of (N, T) so the reader can see
      why distributing it matters. -->
 
 ## 4. Why it splits
 
-<!-- TODO: identify the only coupling (formation edge terms). Introduce local copies,
+<!-- TODO(deepseek §13.1): identify the only coupling (formation edge terms). Introduce local copies,
      state the equivalence between the coupled problem and the copy-based problem with
      consensus constraints, and prove the equivalence in one paragraph (it is immediate --
      but state it, because it is the step that licenses everything else). -->
 
 ## 5. Consensus ADMM
 
-<!-- TODO: augmented Lagrangian, the three updates, the scaled-dual substitution
+<!-- TODO(deepseek §13.1): augmented Lagrangian, the three updates, the scaled-dual substitution
      lambda := u / rho, and the derivation of the z-update as a plain average. Show why
      the z-update needs only neighbor communication -- that is the whole point. -->
 
 ## 6. Residuals, tolerances, stopping
 
-<!-- TODO: primal and dual residual definitions, the eps_pri / eps_dual formulas with the
+<!-- TODO(deepseek §13.1): primal and dual residual definitions, the eps_pri / eps_dual formulas with the
      n_dual count spelled out, and why the dual residual is rho * ||z - z_prev|| rather
      than something involving lambda. -->
 
 ## 7. Adaptive rho
 
-<!-- TODO: residual balancing rule, the mandatory dual rescaling, and an explicit warning
+<!-- TODO(deepseek §13.1): residual balancing rule, the mandatory dual rescaling, and an explicit warning
      that the linear-rate result assumes fixed rho. -->
 
 ## 8. Convergence
 
-<!-- TODO: state the assumptions (closed proper convex f_i, existence of a saddle point,
+<!-- TODO(deepseek §13.1): state the assumptions (closed proper convex f_i, existence of a saddle point,
      fixed graph, synchronous updates, exact local solves). Give the O(1/k) ergodic result
      and the linear rate under strong convexity plus Lipschitz gradient, with the
      lambda_2 dependence. Then state plainly which assumptions the switching-topology and
@@ -78,7 +78,7 @@ wrong.
 
 ## 9. Tuning guide
 
-<!-- TODO: practical defaults and the reasoning:
+<!-- TODO(deepseek §13.1): practical defaults and the reasoning:
      - rho scaled to the ratio of objective to consensus curvature
      - alpha in [1.5, 1.8]
      - horizon vs dt trade-off (T*dt must exceed the formation settling time)
@@ -89,12 +89,12 @@ wrong.
 
 ## 10. Implementation notes
 
-<!-- TODO: the vec ordering convention (time-major), the QP block layout shared by the
+<!-- TODO(deepseek §13.1): the vec ordering convention (time-major), the QP block layout shared by the
      Python and C++ implementations, and the parity test that pins them together. -->
 
 ## References
 
-<!-- TODO: Boyd et al. 2011 (Foundations and Trends in ML 3(1)); Stellato et al. 2020
+<!-- TODO(deepseek §13.1): Boyd et al. 2011 (Foundations and Trends in ML 3(1)); Stellato et al. 2020
      (OSQP, Math. Prog. Comp.); the distributed-MPC survey used for the comparison table;
      a rigidity-theory reference for section 3 of formation_constraints. Full citations,
      not just author-year. -->
