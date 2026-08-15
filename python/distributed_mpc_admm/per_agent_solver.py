@@ -28,9 +28,12 @@ Dimensions: ``U_i`` is ``(T, 2)``, every ``y_i^j`` is ``(T, 2)``.
 
 from __future__ import annotations
 
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from functools import cache
 
+import cvxpy as cp
 import numpy as np
 from numpy.typing import NDArray
 
@@ -43,6 +46,38 @@ __all__ = [
     "LocalSolution",
     "PerAgentSolver",
 ]
+
+
+@cache
+def _condensed_prediction(
+    dt: float, dim: int, horizon: int
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Build ``(Phi, Gamma)`` for the discrete double integrator, cached on ``(dt, dim, horizon)``.
+
+    ``Phi`` block row ``r`` (time ``t = r + 1``) is ``A^(r+1)``; ``Gamma`` block ``(r, s)``
+    is ``A^(r-s) B`` for ``s <= r`` (and zero above the diagonal). ``A`` powers are built
+    iteratively so the recursion is directly checkable against the forward rollout.
+    """
+    a = np.zeros((2 * dim, 2 * dim))
+    a[0:dim, 0:dim] = np.eye(dim)
+    a[0:dim, dim : 2 * dim] = dt * np.eye(dim)
+    a[dim : 2 * dim, dim : 2 * dim] = np.eye(dim)
+
+    b = np.zeros((2 * dim, dim))
+    b[0:dim, :] = 0.5 * dt**2 * np.eye(dim)
+    b[dim : 2 * dim, :] = dt * np.eye(dim)
+
+    n = 2 * dim
+    powers = [np.eye(n)]
+    for _ in range(horizon):
+        powers.append(a @ powers[-1])
+
+    phi = np.vstack([powers[r + 1] for r in range(horizon)])
+    gamma = np.zeros((horizon * n, horizon * dim))
+    for r in range(horizon):
+        for s in range(r + 1):
+            gamma[r * n : (r + 1) * n, s * dim : (s + 1) * dim] = powers[r - s] @ b
+    return phi, gamma
 
 
 @dataclass(frozen=True)
@@ -63,37 +98,48 @@ class DoubleIntegrator:
     @property
     def n_states(self) -> int:
         """``2 * dim``."""
-        raise NotImplementedError
+        return 2 * self.dim
 
     @property
     def n_inputs(self) -> int:
         """``dim``."""
-        raise NotImplementedError
+        return self.dim
 
     def matrices(self) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
         """Return ``(A, B)`` with shapes ``(2*dim, 2*dim)`` and ``(2*dim, dim)``."""
-        raise NotImplementedError
+        dim = self.dim
+        a = np.zeros((2 * dim, 2 * dim))
+        a[0:dim, 0:dim] = np.eye(dim)
+        a[0:dim, dim : 2 * dim] = self.dt * np.eye(dim)
+        a[dim : 2 * dim, dim : 2 * dim] = np.eye(dim)
+
+        b = np.zeros((2 * dim, dim))
+        b[0:dim, :] = 0.5 * self.dt**2 * np.eye(dim)
+        b[dim : 2 * dim, :] = self.dt * np.eye(dim)
+        return a, b
 
     def position_selector(self) -> NDArray[np.float64]:
         """``C_p`` with ``p = C_p x``; shape ``(dim, 2*dim)``."""
-        raise NotImplementedError
+        selector = np.zeros((self.dim, 2 * self.dim))
+        selector[:, : self.dim] = np.eye(self.dim)
+        return selector
 
     def velocity_selector(self) -> NDArray[np.float64]:
         """``C_v`` with ``v = C_v x``; shape ``(dim, 2*dim)``."""
-        raise NotImplementedError
+        selector = np.zeros((self.dim, 2 * self.dim))
+        selector[:, self.dim :] = np.eye(self.dim)
+        return selector
 
-    def prediction_matrices(
-        self, horizon: int
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def prediction_matrices(self, horizon: int) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
         """Condensed prediction ``X = Phi x0 + Gamma U`` over ``t = 1..T``.
 
         Returns ``(Phi, Gamma)`` with shapes ``(T*2*dim, 2*dim)`` and
         ``(T*2*dim, T*dim)``. ``Gamma`` is block lower-triangular with
-        ``Gamma[t, s] = A^{t-s-1} B`` for ``s <= t``.
+        ``Gamma[r, s] = A^{r-s} B`` for ``s <= r``.
 
         Note the horizon starts at ``t = 1``: ``x0`` itself is *not* part of ``X``.
         """
-        raise NotImplementedError
+        return _condensed_prediction(self.dt, self.dim, horizon)
 
     def position_prediction_matrices(
         self, horizon: int
@@ -104,14 +150,38 @@ class DoubleIntegrator:
         This is the map used in the equality constraint ``y_i^i = Phi_p x0 + Gamma_p U_i``.
         Cache the result — it depends only on ``(dt, dim, horizon)``.
         """
-        raise NotImplementedError
+        phi, gamma = _condensed_prediction(self.dt, self.dim, horizon)
+        n = 2 * self.dim
+        idx = np.concatenate([np.arange(t * n, t * n + self.dim) for t in range(horizon)])
+        return phi[idx], gamma[idx]
 
-    def simulate(
-        self, x0: NDArray[np.float64], inputs: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def velocity_prediction_matrices(
+        self, horizon: int
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        """Rows of :meth:`prediction_matrices` that produce velocities only.
+
+        Returns ``(Phi_v, Gamma_v)`` with shapes ``(T*dim, 2*dim)`` and ``(T*dim, T*dim)``.
+        This is the map used in the velocity box ``|V_i| <= v_max``.
+        """
+        phi, gamma = _condensed_prediction(self.dt, self.dim, horizon)
+        n = 2 * self.dim
+        idx = np.concatenate(
+            [np.arange(t * n + self.dim, t * n + 2 * self.dim) for t in range(horizon)]
+        )
+        return phi[idx], gamma[idx]
+
+    def simulate(self, x0: NDArray[np.float64], inputs: NDArray[np.float64]) -> NDArray[np.float64]:
         """Roll the true plant forward. ``inputs`` is ``(T, dim)``; returns ``(T+1, 2*dim)``
         including ``x0`` as row 0."""
-        raise NotImplementedError
+        a, b = self.matrices()
+        x0 = np.asarray(x0, dtype=np.float64)
+        inputs = np.asarray(inputs, dtype=np.float64)
+        horizon = inputs.shape[0]
+        states = np.zeros((horizon + 1, self.n_states))
+        states[0] = x0
+        for t in range(horizon):
+            states[t + 1] = a @ states[t] + b @ inputs[t]
+        return states
 
 
 @dataclass
@@ -132,7 +202,19 @@ class AgentLimits:
 
     def validate(self, dim: int) -> None:
         """Raise ``ValueError`` on shape/sign mismatches. Call once at solver setup."""
-        raise NotImplementedError
+        if self.u_max is not None and self.u_max <= 0:
+            raise ValueError(f"u_max must be positive, got {self.u_max}")
+        if self.v_max is not None and self.v_max <= 0:
+            raise ValueError(f"v_max must be positive, got {self.v_max}")
+        for name, bound in (("p_min", self.p_min), ("p_max", self.p_max)):
+            if bound is not None and np.asarray(bound).shape != (dim,):
+                raise ValueError(f"{name} must have shape ({dim},), got {np.asarray(bound).shape}")
+        if (
+            self.p_min is not None
+            and self.p_max is not None
+            and np.any(np.asarray(self.p_min) > np.asarray(self.p_max))
+        ):
+            raise ValueError("p_min must be component-wise <= p_max")
 
 
 @dataclass
@@ -164,7 +246,17 @@ class AgentCostWeights:
 
     def validate(self) -> None:
         """Raise ``ValueError`` if any weight is negative."""
-        raise NotImplementedError
+        for name in (
+            "q_position",
+            "q_velocity",
+            "r_input",
+            "r_rate",
+            "p_terminal",
+            "w_formation",
+        ):
+            value = getattr(self, name)
+            if value < 0:
+                raise ValueError(f"{name} must be non-negative, got {value}")
 
 
 @dataclass
@@ -208,7 +300,14 @@ class LocalProblemData:
 
     def validate(self) -> None:
         """Check that ``z`` and ``lam`` cover ``neighborhood`` with the right shapes."""
-        raise NotImplementedError
+        shape = (self.horizon, self.model.dim)
+        for j in self.neighborhood:
+            for name, mapping in (("z", self.z), ("lam", self.lam)):
+                if j not in mapping:
+                    raise KeyError(f"neighbor {j} missing from {name} for agent {self.agent_id}")
+                value = np.asarray(mapping[j])
+                if value.shape != shape:
+                    raise ValueError(f"{name}[{j}] must have shape {shape}, got {value.shape}")
 
 
 @dataclass
@@ -235,12 +334,17 @@ class LocalSolution:
     @property
     def own_trajectory(self) -> NDArray[np.float64]:
         """Shorthand for ``copies[agent_id]``."""
-        raise NotImplementedError
+        return self.copies[self.agent_id]
 
 
 class PerAgentSolver(ABC):
     """Interface for the x-update. Implementations must be stateless across agents but may
     cache compiled problem structure for their own ``agent_id``."""
+
+    # Shared state every concrete solver exposes to the consensus loop.
+    _model: DoubleIntegrator
+    _limits: AgentLimits
+    _weights: AgentCostWeights
 
     @abstractmethod
     def solve(self, data: LocalProblemData) -> LocalSolution:
@@ -285,36 +389,212 @@ class CvxpyAgentSolver(PerAgentSolver):
         solver: str = "OSQP",
         solver_options: dict[str, object] | None = None,
     ) -> None:
-        # TODO(deepseek §5.4): build the parametrised problem here. Concretely:
-        #   1. variables: U (T, dim); y = {j: cp.Variable((T, dim)) for j in neighborhood}
-        #   2. parameters: x0_p (2*dim,), ref_p (T, dim), rho_p (nonneg scalar),
-        #      z_p[j] (T, dim), lam_p[j] (T, dim), u_prev_p (dim,)
-        #   3. constraint: cp.vec(y[agent_id]) == Phi_p @ x0_p + Gamma_p @ cp.vec(U)
-        #      -- fix the vec order (CVXPY uses Fortran/column-major by default; pass
-        #      order="C" or build Phi_p/Gamma_p to match, and assert it in a unit test)
-        #   4. constraints: cp.abs(U) <= u_max; cp.abs(V) <= v_max via the velocity rows
-        #      of the full-state prediction; workspace box on y[agent_id]
-        #   5. objective: tracking + input + rate + terminal + formation + consensus penalty
-        raise NotImplementedError
+        self._agent_id = agent_id
+        self._horizon = horizon
+        self._model = model
+        self._limits = limits
+        self._weights = weights
+        self._neighborhood = tuple(neighborhood)
+        self._offsets = dict(offsets) if offsets is not None else {}
+        self._solver = solver
+        self._solver_options = dict(solver_options) if solver_options is not None else {}
+
+        limits.validate(model.dim)
+        weights.validate()
+        if agent_id not in self._neighborhood:
+            raise ValueError(f"agent_id {agent_id} must belong to its own closed neighborhood")
+
+        t_steps, dim = horizon, model.dim
+        phi_p, gamma_p = model.position_prediction_matrices(horizon)
+        phi_v, gamma_v = model.velocity_prediction_matrices(horizon)
+
+        # --- variables ---------------------------------------------------------
+        self._U = cp.Variable(t_steps * dim, name="U")
+        self._y = {j: cp.Variable(t_steps * dim, name=f"y_{j}") for j in self._neighborhood}
+
+        # --- parameters --------------------------------------------------------
+        self._x0_p = cp.Parameter(model.n_states, name="x0")
+        self._ref_p = cp.Parameter(t_steps * dim, name="ref")
+        self._rho_p = cp.Parameter(nonneg=True, name="rho")
+        self._w_p = {j: cp.Parameter(t_steps * dim, name=f"w_{j}") for j in self._neighborhood}
+        self._u_prev_p = cp.Parameter(dim, name="u_prev")
+        self._u_prev_active = cp.Parameter(nonneg=True, name="u_prev_active")
+
+        y_self = self._y[agent_id]
+
+        # --- constraints -------------------------------------------------------
+        constraints = []
+        constraints.append(y_self == phi_p @ self._x0_p + gamma_p @ self._U)
+
+        if limits.u_max is not None:
+            constraints.append(cp.abs(self._U) <= limits.u_max)
+
+        velocity = phi_v @ self._x0_p + gamma_v @ self._U
+        if limits.v_max is not None:
+            constraints.append(cp.abs(velocity) <= limits.v_max)
+
+        if limits.p_min is not None:
+            constraints.append(y_self >= np.tile(limits.p_min, t_steps))
+        if limits.p_max is not None:
+            constraints.append(y_self <= np.tile(limits.p_max, t_steps))
+
+        # --- objective ---------------------------------------------------------
+        objective = weights.q_position * cp.sum_squares(y_self - self._ref_p)
+        objective += weights.p_terminal * cp.sum_squares(
+            y_self[(t_steps - 1) * dim :] - self._ref_p[(t_steps - 1) * dim :]
+        )
+        objective += weights.q_velocity * cp.sum_squares(velocity)
+        objective += weights.r_input * cp.sum_squares(self._U)
+
+        if weights.r_rate > 0:
+            objective += weights.r_rate * (
+                cp.sum_squares(self._U[dim:] - self._U[:-dim])
+                + self._u_prev_active * cp.sum_squares(self._U[:dim] - self._u_prev_p)
+            )
+
+        for j, offset in self._offsets.items():
+            if j == agent_id:
+                continue
+            if j not in self._neighborhood:
+                raise ValueError(
+                    f"offset key {j} is not in the closed neighborhood of agent {agent_id}"
+                )
+            d_full = np.tile(np.asarray(offset, dtype=np.float64), t_steps)
+            objective += weights.w_formation * cp.sum_squares(y_self - self._y[j] - d_full)
+
+        # Consensus penalty, DPP-safe expansion of (rho/2)||y - z + lam||^2:
+        #     (rho/2)||y||^2 - <y, rho*(z - lam)> + const
+        # The linear term is affine in the single parameter w_p[j] = rho*(z - lam).
+        for j in self._neighborhood:
+            objective += 0.5 * self._rho_p * cp.sum_squares(self._y[j])
+            objective -= self._y[j] @ self._w_p[j]
+
+        self._problem = cp.Problem(cp.Minimize(objective), constraints)
+        if not self._problem.is_dpp():
+            raise RuntimeError(
+                "local QP is not DPP-compliant; it would re-canonicalise on every solve"
+            )
 
     def solve(self, data: LocalProblemData) -> LocalSolution:
-        raise NotImplementedError
+        self._assign_parameters(data)
+        start = time.perf_counter()
+        self._problem.solve(solver=self._solver, warm_start=True, **self._solver_options)
+        solve_time = time.perf_counter() - start
+        # Accept the OSQP "user_limit" (max-iterations) status: under packet loss or a
+        # poorly scaled penalty the subproblem may not converge, but its last iterate is
+        # still a valid, finite step and crashing would break the outer ADMM loop.
+        if self._problem.status not in (cp.OPTIMAL, cp.OPTIMAL_INACCURATE, cp.USER_LIMIT):
+            raise RuntimeError(
+                f"local QP for agent {data.agent_id} returned non-optimal status "
+                f"{self._problem.status!r}"
+            )
+        return self._extract_solution(data, solve_time)
 
     def warm_start(self, solution: LocalSolution) -> None:
-        raise NotImplementedError
+        self._U.value = solution.inputs.ravel()
+        for j, value in solution.copies.items():
+            if j in self._y:
+                self._y[j].value = value.ravel()
 
     def reset(self) -> None:
-        raise NotImplementedError
+        self._U.value = None
+        for j in self._neighborhood:
+            self._y[j].value = None
 
     # ------------------------------------------------------------------ internals
 
     def _assign_parameters(self, data: LocalProblemData) -> None:
         """Copy ``data`` into the CVXPY parameters. Raise if a neighbor key is missing."""
-        raise NotImplementedError
+        data.validate()
+        self._x0_p.value = np.asarray(data.x0, dtype=np.float64)
+
+        if data.reference is None:
+            if self._weights.q_position > 0 or self._weights.p_terminal > 0:
+                raise ValueError(
+                    f"agent {data.agent_id}: reference is None but tracking weights are non-zero"
+                )
+            self._ref_p.value = np.zeros(self._horizon * self._model.dim)
+        else:
+            self._ref_p.value = np.asarray(data.reference, dtype=np.float64).ravel()
+
+        self._rho_p.value = float(data.rho)
+
+        for j in self._neighborhood:
+            if j not in data.z:
+                raise KeyError(f"agent {data.agent_id}: missing z[{j}]")
+            if j not in data.lam:
+                raise KeyError(f"agent {data.agent_id}: missing lam[{j}]")
+            z = np.asarray(data.z[j], dtype=np.float64)
+            lam = np.asarray(data.lam[j], dtype=np.float64)
+            self._w_p[j].value = float(data.rho) * (z - lam).ravel()
+
+        if self._weights.r_rate > 0:
+            if data.u_prev is None:
+                self._u_prev_p.value = np.zeros(self._model.dim)
+                self._u_prev_active.value = 0.0
+            else:
+                self._u_prev_p.value = np.asarray(data.u_prev, dtype=np.float64)
+                self._u_prev_active.value = 1.0
 
     def _extract_solution(self, data: LocalProblemData, solve_time: float) -> LocalSolution:
         """Read variable values back out and compute ``local_objective``."""
-        raise NotImplementedError
+        t_steps, dim = self._horizon, self._model.dim
+        inputs = np.asarray(self._U.value, dtype=np.float64).reshape(t_steps, dim)
+        copies = {
+            j: np.asarray(self._y[j].value, dtype=np.float64).reshape(t_steps, dim)
+            for j in self._neighborhood
+        }
+        phi, gamma = self._model.prediction_matrices(t_steps)
+        x0 = np.asarray(data.x0, dtype=np.float64)
+        states = (phi @ x0 + gamma @ inputs.ravel()).reshape(t_steps, self._model.n_states)
+        local_objective = self._compute_local_objective(data, inputs, copies)
+        return LocalSolution(
+            agent_id=self._agent_id,
+            inputs=inputs,
+            copies=copies,
+            states=states,
+            local_objective=local_objective,
+            solve_time=solve_time,
+            status=self._problem.status,
+        )
+
+    def _compute_local_objective(
+        self,
+        data: LocalProblemData,
+        inputs: NDArray[np.float64],
+        copies: dict[int, NDArray[np.float64]],
+    ) -> float:
+        """Evaluate ``f_i`` (without the augmented-Lagrangian penalty) numerically."""
+        t_steps, dim = self._horizon, self._model.dim
+        weights = self._weights
+        y_self = copies[self._agent_id]
+
+        value = 0.0
+        if data.reference is not None:
+            ref = np.asarray(data.reference, dtype=np.float64).reshape(t_steps, dim)
+            value += weights.q_position * float(np.sum((y_self - ref) ** 2))
+            value += weights.p_terminal * float(np.sum((y_self[-1] - ref[-1]) ** 2))
+
+        phi_v, gamma_v = self._model.velocity_prediction_matrices(t_steps)
+        x0 = np.asarray(data.x0, dtype=np.float64)
+        velocity = (phi_v @ x0 + gamma_v @ inputs.ravel()).reshape(t_steps, dim)
+        value += weights.q_velocity * float(np.sum(velocity**2))
+        value += weights.r_input * float(np.sum(inputs**2))
+
+        if weights.r_rate > 0:
+            previous = (
+                np.asarray(data.u_prev, dtype=np.float64) if data.u_prev is not None else inputs[0]
+            )
+            seq = np.vstack([previous[None, :], inputs])
+            value += weights.r_rate * float(np.sum((seq[1:] - seq[:-1]) ** 2))
+
+        for j, offset in self._offsets.items():
+            if j == self._agent_id:
+                continue
+            d_full = np.asarray(offset, dtype=np.float64)
+            value += weights.w_formation * float(np.sum((y_self - copies[j] - d_full) ** 2))
+
+        return value
 
 
 def build_reference_trajectory(
@@ -328,4 +608,5 @@ def build_reference_trajectory(
     Clamps past the end of ``waypoints`` (hold-last), which keeps the terminal cost
     well-defined when the horizon runs off the end of the mission.
     """
-    raise NotImplementedError
+    idx = np.clip(np.arange(start_step + 1, start_step + horizon + 1), 0, len(waypoints) - 1)
+    return waypoints[idx]

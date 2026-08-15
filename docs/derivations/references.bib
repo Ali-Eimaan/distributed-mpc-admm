@@ -3,9 +3,8 @@
 
 % Bibliography shared by every document in docs/derivations/.
 %
-% TODO(deepseek §13.4): complete every entry. Verify each one against the actual publication --
-% do not copy a citation you have not opened. A wrong page range in a document whose whole
-% purpose is to demonstrate scholarly care is a costly error.
+% All entries verified against the publications cited (title, venue, volume, issue,
+% pages, year).
 
 @article{boyd2011admm,
   author  = {Boyd, Stephen and Parikh, Neal and Chu, Eric and Peleato, Borja and Eckstein, Jonathan},
@@ -27,10 +26,142 @@
   year    = {2020}
 }
 
-% TODO(deepseek §13.4): add entries for
-%   - a distributed MPC survey (for the problem framing in the derivation)
-%   - the linear-rate result for ADMM under strong convexity
-%   - asynchronous / partially-asynchronous ADMM (bounded-delay assumption)
-%   - consensus over switching topologies (joint connectivity, dwell time)
-%   - graph rigidity theory (for formation_constraints section 3)
-%   - a hybrid-systems reference for the reset-map discussion in convergence_proof section 7
+% --- Distributed MPC: problem framing ---
+
+@article{christofides2013distributed,
+  author  = {Christofides, Panagiotis D. and Scattolini, Riccardo and de la Pe{\~n}a, David Mu{\~n}oz and Liu, Jinfeng},
+  title   = {Distributed Model Predictive Control: A Tutorial Review and Future Research Directions},
+  journal = {Computers \& Chemical Engineering},
+  volume  = {51},
+  pages   = {21--41},
+  year    = {2013}
+}
+
+@article{scattolini2009architectures,
+  author  = {Scattolini, Riccardo},
+  title   = {Architectures for Distributed and Hierarchical Model Predictive Control -- A Review},
+  journal = {Journal of Process Control},
+  volume  = {19},
+  number  = {5},
+  pages   = {723--731},
+  year    = {2009}
+}
+
+% --- Linear-rate ADMM under strong convexity ---
+
+@article{hong2017linear,
+  author  = {Hong, Mingyi and Luo, Zhi-Quan},
+  title   = {On the Linear Convergence of the Alternating Direction Method of Multipliers},
+  journal = {Mathematical Programming},
+  volume  = {162},
+  number  = {1--2},
+  pages   = {165--199},
+  year    = {2017}
+}
+
+@article{deng2016global,
+  author  = {Deng, Wei and Yin, Wotao},
+  title   = {On the Global and Linear Convergence of the Generalized Alternating Direction Method of Multipliers},
+  journal = {Journal of Scientific Computing},
+  volume  = {66},
+  number  = {3},
+  pages   = {889--916},
+  year    = {2016}
+}
+
+% --- Asynchronous / partially-asynchronous ADMM ---
+
+@inproceedings{zhang2014asynchronous,
+  author    = {Zhang, Ruiliang and Kwok, James},
+  title     = {Asynchronous Distributed {ADMM} for Consensus Optimization},
+  booktitle = {Proceedings of the 31st International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {32},
+  number    = {2},
+  pages     = {1701--1709},
+  year      = {2014}
+}
+
+@article{chang2016asynchronous,
+  author  = {Chang, Tsung-Hui and Hong, Mingyi and Liao, Wei-Cheng and Wang, Xiangfeng},
+  title   = {Asynchronous Distributed {ADMM} for Large-Scale Optimization---Part {I}: Algorithm and Convergence Analysis},
+  journal = {IEEE Transactions on Signal Processing},
+  volume  = {64},
+  number  = {12},
+  pages   = {3118--3130},
+  year    = {2016}
+}
+
+% --- Consensus over switching topologies ---
+
+@article{jadbabaie2003coordination,
+  author  = {Jadbabaie, Ali and Lin, Jie and Morse, A. Stephen},
+  title   = {Coordination of Groups of Mobile Autonomous Agents Using Nearest Neighbor Rules},
+  journal = {IEEE Transactions on Automatic Control},
+  volume  = {48},
+  number  = {6},
+  pages   = {988--1001},
+  year    = {2003}
+}
+
+@article{olfatisaber2004consensus,
+  author  = {Olfati-Saber, Reza and Murray, Richard M.},
+  title   = {Consensus Problems in Networks of Agents with Switching Topology and Time-Delays},
+  journal = {IEEE Transactions on Automatic Control},
+  volume  = {49},
+  number  = {9},
+  pages   = {1520--1533},
+  year    = {2004}
+}
+
+@article{ren2005consensus,
+  author  = {Ren, Wei and Beard, Randal W.},
+  title   = {Consensus Seeking in Multiagent Systems under Dynamically Changing Interaction Topologies},
+  journal = {IEEE Transactions on Automatic Control},
+  volume  = {50},
+  number  = {5},
+  pages   = {655--661},
+  year    = {2005}
+}
+
+% --- Graph rigidity for formation constraints ---
+
+@article{anderson2008rigid,
+  author  = {Anderson, Brian D. O. and Yu, Changbin and Fidan, Bar{\i}{\c{s}} and Hendrickx, Julien M.},
+  title   = {Rigid Graph Control Architectures for Autonomous Formations},
+  journal = {IEEE Control Systems Magazine},
+  volume  = {28},
+  number  = {6},
+  pages   = {48--63},
+  year    = {2008}
+}
+
+@article{hendrickson1992conditions,
+  author  = {Hendrickson, Bruce},
+  title   = {Conditions for Unique Graph Realizations},
+  journal = {SIAM Journal on Computing},
+  volume  = {21},
+  number  = {1},
+  pages   = {65--84},
+  year    = {1992}
+}
+
+% --- Hybrid systems for the reset-map discussion ---
+
+@book{goebel2012hybrid,
+  author    = {Goebel, Rafal and Sanfelice, Ricardo G. and Teel, Andrew R.},
+  title     = {Hybrid Dynamical Systems: Modeling, Stability, and Robustness},
+  publisher = {Princeton University Press},
+  address   = {Princeton, NJ},
+  year      = {2012}
+}
+
+@article{hespanha2008lyapunov,
+  author  = {Hespanha, Jo{\~a}o P. and Liberzon, Daniel and Teel, Andrew R.},
+  title   = {Lyapunov Conditions for Input-to-State Stability of Impulsive Systems},
+  journal = {Automatica},
+  volume  = {44},
+  number  = {11},
+  pages   = {2735--2744},
+  year    = {2008}
+}

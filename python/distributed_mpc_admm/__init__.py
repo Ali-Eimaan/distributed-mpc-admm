@@ -52,21 +52,54 @@ __all__ = [
     "CvxpyAgentSolver",
     "DistributedMPC",
     "DoubleIntegrator",
+    "DualDecomposition",
+    "DualDecompositionAgentSolver",
+    "DualDecompositionOptions",
+    "DualDecompositionResult",
+    "FormationError",
     "FormationSpec",
     "LeaderFollowerSpec",
     "LocalProblemData",
     "LocalSolution",
     "LossyChannel",
+    "MPCOptions",
     "PerAgentSolver",
     "SimulationLog",
     "TimeVaryingGraph",
+    "formation_error",
+    "settling_step",
     "__version__",
 ]
 
-# TODO(deepseek §3.5): re-export the public names above once the modules are implemented, e.g.
-#     from .communication_graph import CommunicationGraph, LossyChannel, TimeVaryingGraph
-#     from .consensus_admm import ADMMHistory, ADMMOptions, ADMMResult, ConsensusADMM, ...
-#     from .formation_constraints import FormationSpec, LeaderFollowerSpec
-#     from .per_agent_solver import AgentCostWeights, AgentLimits, CvxpyAgentSolver, ...
-# Keep the imports lazy-free (plain top-level imports); the package must stay importable
-# without a solver installed only if you guard the CVXPY import inside per_agent_solver.
+from .communication_graph import CommunicationGraph, LossyChannel, TimeVaryingGraph
+from .consensus_admm import (
+    ADMMHistory,
+    ADMMOptions,
+    ADMMResult,
+    ConsensusADMM,
+    DistributedMPC,
+    MPCOptions,
+    SimulationLog,
+)
+from .dual_decomposition import (
+    DualDecomposition,
+    DualDecompositionAgentSolver,
+    DualDecompositionOptions,
+    DualDecompositionResult,
+)
+from .formation_constraints import (
+    FormationError,
+    FormationSpec,
+    LeaderFollowerSpec,
+    formation_error,
+    settling_step,
+)
+from .per_agent_solver import (
+    AgentCostWeights,
+    AgentLimits,
+    CvxpyAgentSolver,
+    DoubleIntegrator,
+    LocalProblemData,
+    LocalSolution,
+    PerAgentSolver,
+)

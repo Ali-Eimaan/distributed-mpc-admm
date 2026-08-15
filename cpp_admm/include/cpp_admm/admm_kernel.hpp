@@ -177,6 +177,10 @@ struct ADMMOptions
   /// Iterations an agent may run on stale neighbor data before it gives up and holds the
   /// previous control input. Zero disables the check (unsafe on real hardware).
   int max_staleness{5};
+
+  /// Inner OSQP settings for the local QP. Defaults match QpSettings{}; the parity test
+  /// overrides them to solve the same problem to a tighter tolerance than production.
+  QpSettings qp_settings;
 };
 
 /// Per-iteration diagnostics, held in preallocated ring buffers.
@@ -253,6 +257,14 @@ public:
 
   /// This agent's agreed position trajectory z^i, size horizon*dim.
   [[nodiscard]] const Eigen::VectorXd & consensusTrajectory() const noexcept;
+
+  /// This agent's local copy y_i^j of agent j's trajectory, size horizon*dim. `j` must
+  /// be in the closed neighborhood. Provided for the parity tests and diagnostics.
+  [[nodiscard]] const Eigen::VectorXd & localCopy(int j) const;
+
+  /// This agent's scaled dual lambda_i^j, size horizon*dim. `j` must be in the closed
+  /// neighborhood. Provided for the parity tests and diagnostics.
+  [[nodiscard]] const Eigen::VectorXd & dual(int j) const;
 
   [[nodiscard]] const ADMMStats & stats() const noexcept;
   [[nodiscard]] const AgentConfig & config() const noexcept;

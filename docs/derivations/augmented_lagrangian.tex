@@ -5,9 +5,7 @@
 %
 % Compile:  latexmk -pdf augmented_lagrangian.tex
 % Shared preamble/macros live in preamble.tex; do not redefine macros locally.
-%
-% TODO(deepseek §13.2): write the sections below. Keep every symbol consistent with
-% docs/README_math.md section 1.
+% Notation follows docs/README_math.md section 1.
 
 \documentclass[11pt]{article}
 \input{preamble}
@@ -20,43 +18,173 @@
 \maketitle
 
 \begin{abstract}
-% TODO(deepseek §13.2): two sentences. What the augmented Lagrangian is, and why the quadratic term buys
-% convergence without requiring strict convexity of $f$.
+The augmented Lagrangian adds a quadratic penalty $\tfrac{\rho}{2}\norm{Ax-b}_2^2$ to the
+ordinary Lagrangian. The penalty leaves the solution set unchanged but makes the dual
+function differentiable with a known $1/\rho$-Lipschitz gradient, so it converges by
+gradient ascent even when $f$ is merely convex.
 \end{abstract}
 
 \section{Setup}
-% TODO(deepseek §13.2): equality-constrained convex program $\min f(x)$ s.t. $Ax = b$. State the standing
-% assumptions ($f$ closed proper convex, a saddle point exists) and note exactly where each
-% is used later.
+\label{sec:setup}
+
+Consider the equality-constrained convex program
+\begin{equation}
+\min_x \; f(x) \qquad\text{subject to}\qquad Ax = b,
+\label{eq:problem}
+\end{equation}
+with $f : \R^n \to \R \cup \{+\infty\}$ closed, proper and convex, $A \in \R^{m\times n}$
+and $b \in \R^m$. Two standing assumptions are used throughout:
+
+\begin{assumption}[closed, proper, convex]
+\label{ass:cpc}
+$f$ is closed, proper and convex.
+\end{assumption}
+
+\begin{assumption}[saddle point]
+\label{ass:saddle}
+The ordinary Lagrangian $L(x,\nu) = f(x) + \nu^\top(Ax-b)$ has a saddle point;
+equivalently, strong duality holds and a primal--dual optimal pair $(x^\star,\nu^\star)$
+exists.
+\end{assumption}
+
+Assumption~\ref{ass:cpc} makes the augmented problem of Section~\ref{sec:augmented}
+well-posed; Assumption~\ref{ass:saddle} licenses the dual step of
+Section~\ref{sec:multipliers}. We deliberately do \emph{not} assume strict convexity of
+$f$: that omission is the entire point of the augmented Lagrangian.
 
 \section{From the Lagrangian to dual ascent}
-% TODO(deepseek §13.2): ordinary Lagrangian, the dual function, dual ascent, and the step-size condition.
-% Then the two failure modes: the inner problem is unbounded when $f$ is merely convex, and
-% the step size depends on a Lipschitz constant that is unknown in practice.
+\label{sec:dualascent}
+
+The ordinary Lagrangian and the dual function are
+\begin{equation}
+L(x,\nu) = f(x) + \nu^\top(Ax-b),
+\qquad
+g(\nu) = \inf_x L(x,\nu).
+\end{equation}
+The dual problem $\max_\nu g(\nu)$ is solved by (sub)gradient ascent. At a multiplier
+$\nu^k$, a subgradient of $g$ is the constraint residual at the minimiser:
+\begin{equation}
+x^{k+1} \in \argmin_x L(x, \nu^k),
+\qquad
+\nu^{k+1} = \nu^k + \alpha^k\,(A x^{k+1} - b),
+\label{eq:dualascent}
+\end{equation}
+where $\alpha^k > 0$ is a step size. Two failure modes make this unusable in practice.
+
+First, when $f$ is merely convex the inner problem
+$\inf_x L(x,\nu^k) = \inf_x \big[ f(x) + \nu^k{}^\top A x \big]$ need not have a unique
+minimiser and can be unbounded below, so $x^{k+1}$ is ill-defined or multi-valued. This is
+exactly the rendezvous case of the MPC problem in this repository: with $q_v = r = 0$ the
+follower copies are pinned only by a linear dual term.
+
+Second, even when $x^{k+1}$ exists, the step-size sequence $\alpha^k$ must be tuned to an
+unknown Lipschitz constant. The dual of a merely convex primal is non-smooth, so a constant
+step is not guaranteed to converge while a diminishing step is slow; neither constant is
+available a priori.
 
 \section{The augmented Lagrangian}
-% TODO(deepseek §13.2): add $\tfrac{\rho}{2}\|Ax - b\|_2^2$. Show that it does not change the solution set
-% (the added term vanishes at feasibility), and that it makes the dual function
-% differentiable with a $1/\rho$-Lipschitz gradient. This is the whole reason the method
-% works and it deserves a full paragraph, not a citation.
+\label{sec:augmented}
+
+Add a quadratic penalty to the ordinary Lagrangian:
+\begin{equation}
+L_\rho(x,\nu) = f(x) + \nu^\top(Ax-b) + \tfrac{\rho}{2}\norm{Ax-b}_2^2,
+\qquad \rho > 0.
+\label{eq:auglag}
+\end{equation}
+The added term does not change the solution set: on the feasible set $Ax = b$ the penalty
+vanishes and $L_\rho = L$, while off the feasible set it only increases the cost, so any
+minimiser of \eqref{eq:auglag} subject to $Ax=b$ is a minimiser of \eqref{eq:problem} and
+vice versa. The important effect is on the \emph{dual}. The augmented dual function
+\begin{equation}
+g_\rho(\nu) = \min_x L_\rho(x,\nu)
+\end{equation}
+is differentiable with gradient
+\begin{equation}
+\nabla g_\rho(\nu) = A x^\star_\rho(\nu) - b,
+\qquad
+x^\star_\rho(\nu) = \argmin_x L_\rho(x,\nu),
+\label{eq:danskin}
+\end{equation}
+and this gradient is $1/\rho$-Lipschitz. The differentiability is a Danskin-type argument:
+the quadratic penalty makes the minimiser unique even when $f$ is merely convex, so the
+envelope theorem applies. The Lipschitz constant $1/\rho$ is \emph{known} --- it is the
+penalty parameter itself --- which is exactly what dual ascent lacked. One added quadratic
+term converts a non-smooth dual into a smooth one whose smoothness constant we choose; this
+is the whole reason the method works and it deserves the emphasis, not a citation.
 
 \section{Method of multipliers}
-% TODO(deepseek §13.2): the two-step iteration. Derive why the dual step size $\rho$ is exactly the penalty
-% parameter -- this equivalence is what makes the choice of $\rho$ self-tuning and is
-% usually asserted rather than shown.
+\label{sec:multipliers}
+
+The method of multipliers alternates the primal minimisation with a dual step whose size is
+exactly the penalty parameter:
+\begin{equation}
+x^{k+1} = \argmin_x L_\rho(x, \nu^k),
+\qquad
+\nu^{k+1} = \nu^k + \rho\,(A x^{k+1} - b).
+\label{eq:mom}
+\end{equation}
+The step size $\rho$ is not a free choice layered on top of the penalty: they are the
+\emph{same} parameter. To see why, write the optimality condition of the $x$-update,
+\begin{equation}
+0 = \nabla f(x^{k+1}) + A^\top \nu^k + \rho A^\top (A x^{k+1} - b)
+  = \nabla f(x^{k+1}) + A^\top\!\big[\nu^k + \rho (A x^{k+1} - b)\big],
+\end{equation}
+and compare it with the stationarity condition at an optimum,
+$\nabla f(x^\star) + A^\top \nu^\star = 0$. The bracket is exactly $\nu^{k+1}$; choosing
+any step other than $\rho$ leaves a stationarity residual that the next $x$-update must
+re-absorb. Equivalently, since $\nabla g_\rho$ is $1/\rho$-Lipschitz by \eqref{eq:danskin},
+gradient ascent with the largest safe constant step is
+$\nu^{k+1} = \nu^k + \rho\,\nabla g_\rho(\nu^k)$. This self-tuning property --- one
+parameter playing both roles --- is what makes the method practical.
 
 \section{Why the method of multipliers does not split}
-% TODO(deepseek §13.2): the joint minimisation over $x$ couples the blocks even when $f$ is separable.
-% This is the precise gap that ADMM closes, and it motivates the next document.
+
+Even when $f$ is separable, say $f(x) = \sum_i f_i(x_i)$ with $x = (x_1,\dots,x_p)$, the
+$x$-update of \eqref{eq:mom} does not decompose, because the penalty
+\begin{equation}
+\tfrac{\rho}{2}\norm{Ax-b}_2^2
+= \tfrac{\rho}{2}\Big\lVert \textstyle\sum_i A_i x_i - b \Big\rVert_2^2
+\end{equation}
+expands into cross terms $x_i^\top A_i^\top A_j x_j$ for every pair $(i,j)$ of blocks. The
+joint minimisation over $x$ couples all blocks through $A$, so the method of multipliers is
+a \emph{centralised} algorithm even for separable $f$. This is the precise gap that ADMM
+closes: by introducing a local copy of the coupling variable and alternating over one block
+at a time, each subproblem keeps the separability that the method of multipliers destroys.
+That construction is the subject of the next document.
 
 \section{Scaled dual form}
-% TODO(deepseek §13.2): complete the square, substitute $\lambda = u/\rho$, and state the resulting
-% iteration. Note that the code stores the *scaled* dual, so any change to $\rho$ must
-% rescale $\lambda$ -- flag it here because it is the bug that adaptive-rho implementations
-% get wrong.
+
+Complete the square in the multiplier and penalty terms of \eqref{eq:auglag}. Writing
+$r = Ax - b$,
+\begin{equation}
+\nu^\top r + \tfrac{\rho}{2}\norm{r}^2
+= \tfrac{\rho}{2}\norm{r + \nu/\rho}^2 - \tfrac{1}{2\rho}\norm{\nu}^2.
+\end{equation}
+Dropping the $\nu$-only constant (it does not affect the $x$-update) and substituting the
+scaled dual $\lambda = \nu/\rho$ gives
+\begin{equation}
+L_\rho(x,\lambda) = f(x) + \tfrac{\rho}{2}\norm{Ax - b + \lambda}^2,
+\qquad
+\lambda^{k+1} = \lambda^k + (A x^{k+1} - b).
+\label{eq:scaled}
+\end{equation}
+The dual update is now the tidy residual accumulation $\lambda \leftarrow \lambda + r$. The
+code in this repository stores the \emph{scaled} dual. A direct consequence: \textbf{any
+change to $\rho$ must rescale $\lambda$ by the reciprocal factor},
+$\lambda \leftarrow \lambda \cdot \rho_{\mathrm{old}}/\rho_{\mathrm{new}}$. This is the
+single most common bug in adaptive-$\rho$ implementations, and it is handled explicitly in
+\verb|ConsensusADMM._update_rho|.
 
 \section{Interpretation}
-% TODO(deepseek §13.2): proximal-point view and the primal-dual interpretation. Keep it short.
+
+Two readings, both short. First, \emph{proximal point}: the multiplier update of
+\eqref{eq:mom} is a proximal step on the negated dual objective, so the method of
+multipliers is the proximal point algorithm applied to the dual; the augmented term is the
+Moreau regularisation that makes the prox map well-defined. Second, \emph{primal--dual
+interpolation}: as $\rho \to 0$ the algorithm limits to dual ascent (smooth dual, slow and
+step-size-sensitive), and as $\rho \to \infty$ it limits to the penalty method (fast primal
+progress, ill-conditioned dual). Finite $\rho$ trades the two, which is why the
+residual-balancing heuristic of the main document chooses $\rho$ online.
 
 \bibliographystyle{plain}
 \bibliography{references}

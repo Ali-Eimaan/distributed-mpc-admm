@@ -14,6 +14,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# One place for the distro name (used in every shell step below). The container image
+# tag is literal because the `env` context is not available in `jobs.<job_id>.container`.
+env:
+  ROS_DISTRO: lyrical
+
 jobs:
   # ---------------------------------------------------------------- Python
   python:
@@ -93,13 +98,16 @@ jobs:
         working-directory: python
         run: pip install -e ".[dev]"
 
-      # TODO(deepseek §14.4): nbmake runs every notebook end to end. If 04 and 05 exceed the
-      # runner budget, add a NB_CI=1 env check inside those notebooks that shrinks the
-      # sweep sizes -- do NOT drop them from CI. A notebook that is not executed in CI is
-      # a notebook that is broken and nobody knows it.
+      # nbmake runs every notebook end to end. If 04/05 exceed the runner budget, add an
+      # NB_CI=1 env check inside those notebooks that shrinks the sweep sizes -- do NOT
+      # drop them from CI. A notebook not executed in CI is one that is broken and nobody knows.
       - name: Execute notebooks
         working-directory: python
         run: pytest --nbmake --nbmake-timeout=900 notebooks/
+
+      # The three analysis/ notebooks read cached .npz logs and are fast; run them too.
+      - name: Execute analysis notebooks
+        run: pytest --nbmake --nbmake-timeout=600 analysis/
 
   # ---------------------------------------------------------------- C++ / ROS 2
   colcon:
@@ -121,25 +129,42 @@ jobs:
             build-essential cmake git python3-colcon-common-extensions \
             libeigen3-dev libzmq3-dev python3-vcstool
           rosdep update
-          rosdep install --from-paths src --ignore-src -y --rosdistro lyrical || true
+          # osqp_vendor is skipped explicitly (risk V9): OSQP is built from source below
+          # at a pinned tag. No `|| true` -- a silently skipped dependency turns into a
+          # confusing link error three steps later.
+          rosdep install --from-paths src --ignore-src -y --rosdistro "$ROS_DISTRO" --skip-keys osqp_vendor
 
-      # TODO(deepseek §14.3): osqp_vendor may not resolve on every distro. If rosdep fails,
-      # build OSQP from source here (git clone --recursive, cmake -DCMAKE_INSTALL_PREFIX
-      # =/usr/local, make install) and drop the `|| true` above -- a silently skipped
-      # dependency install turns into a confusing link error three steps later.
+      # OSQP 1.x (pinned, tag v1.0.0) is not reliably published as osqp_vendor for
+      # Lyrical, so build it from source into /usr/local. The tag is the pin; `main` is not.
+      - name: Build OSQP from source
+        shell: bash
+        run: |
+          git clone --recursive --branch v1.0.0 --depth 1 https://github.com/osqp/osqp.git /tmp/osqp
+          cmake -S /tmp/osqp -B /tmp/osqp/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DOSQP_BUILD_SHARED_LIB=ON
+          cmake --build /tmp/osqp/build --target install -j"$(nproc)"
 
       - name: Build
         shell: bash
         run: |
-          source /opt/ros/lyrical/setup.bash
+          source /opt/ros/$ROS_DISTRO/setup.bash
           colcon build --packages-select cpp_admm --cmake-args -DCMAKE_BUILD_TYPE=Release
 
       - name: Test
         shell: bash
         run: |
-          source /opt/ros/lyrical/setup.bash
-          colcon test --packages-select cpp_admm --event-handlers console_direct+
+          source /opt/ros/$ROS_DISTRO/setup.bash
+          colcon test --packages-select cpp_admm --return-code-on-test-failure --event-handlers console_direct+
           colcon test-result --verbose
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: colcon-test-results
+          path: build/cpp_admm/test_results/
 
   # ---------------------------------------------------------------- LaTeX
   docs:
@@ -148,8 +173,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # TODO(deepseek §14.6): compile each .tex with latexmk and upload the PDFs as an
-      # artifact. Failing this job on a LaTeX error is correct -- a repo whose headline
+      # latexmk (multiple passes + bibtex, -halt-on-error via continue_on_error: false) over
+      # each derivation. Failing this job on a LaTeX error is correct -- a repo whose headline
       # deliverable is a set of derivations must not ship documents that do not compile.
       - name: latexmk
         uses: xu-cheng/latex-action@v3
@@ -165,3 +190,4 @@ jobs:
         with:
           name: derivations-pdf
           path: docs/derivations/*.pdf
+          if-no-files-found: error

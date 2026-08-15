@@ -182,6 +182,11 @@ public:
   /// Value of the local objective *excluding* the consensus penalty, for logging.
   [[nodiscard]] double localObjective(const Eigen::VectorXd & theta) const;
 
+  /// Read-only view of the assembled Hessian (upper-triangular CSC). Exposed for the
+  /// unit tests that verify the PSD structure and that updateRho/updateConsensus touch
+  /// exactly the entries they are documented to touch.
+  [[nodiscard]] const Eigen::SparseMatrix<double> & hessian() const noexcept;
+
 private:
   void buildHessian();       ///< P: tracking + effort + formation + rho*I on the y blocks.
   void buildLinearTerm();    ///< q: reference, formation offsets, consensus (z - lam).

@@ -16,9 +16,12 @@
 //   publish    ~/diagnostics                std_msgs/Float64MultiArray  (ADMMStats)
 //
 // Float64MultiArray is used rather than a custom .msg to keep this package free of a
-// message-generation dependency; the layout field carries (subject, iteration, step).
-// If this graduates into `transition-viable-swarm`, replace it with a typed message --
-// the untyped array has no schema and will eventually be mismatched silently.
+// message-generation dependency; the layout field carries four labeled dims --
+// (sender, subject, admm_iteration, control_step). Sender cannot be recovered from the
+// topic name for copy messages (the topic encodes the subject, not the contributor), so
+// it rides in the layout alongside the freshness fields. If this graduates into
+// `transition-viable-swarm`, replace it with a typed message -- the untyped array has no
+// schema and will eventually be mismatched silently.
 //
 // QoS
 // ---
@@ -28,9 +31,10 @@
 //
 // Threading
 // ---------
-// Single-threaded executor, one timer at the control rate. The ADMM iteration loop spins
-// inside the timer callback and polls the subscription queues directly, so `poll()` must
-// pump the executor rather than sleep -- see the note in consensus_node.cpp.
+// Single-threaded executor, one timer at the control rate. The executor is owned by
+// ConsensusNode (exposed via spin()) and shared with RosTransport; `poll()` re-enters it
+// with spin_some() rather than sleeping, so subscription callbacks still run during the
+// ADMM iteration loop -- see the note in consensus_node.cpp.
 
 #ifndef CPP_ADMM__CONSENSUS_NODE_HPP_
 #define CPP_ADMM__CONSENSUS_NODE_HPP_
@@ -49,6 +53,11 @@
 
 #include "cpp_admm/admm_kernel.hpp"
 
+namespace rclcpp::executors
+{
+class SingleThreadedExecutor;
+}  // namespace rclcpp::executors
+
 namespace cpp_admm
 {
 
@@ -57,7 +66,9 @@ namespace cpp_admm
 class RosTransport : public ITransport
 {
 public:
-  RosTransport(rclcpp::Node * node, int agent_id, const std::vector<int> & neighbors);
+  RosTransport(
+    rclcpp::Node * node, int agent_id, const std::vector<int> & neighbors,
+    rclcpp::executors::SingleThreadedExecutor * executor);
   ~RosTransport() override;
 
   bool publish(MessageKind kind, const NeighborMessage & message) override;
@@ -100,6 +111,10 @@ public:
   explicit ConsensusNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
   ~ConsensusNode() override;
 
+  /// Block in the node's single-threaded executor until shutdown. The same executor is
+  /// re-entered by RosTransport::poll() from within a control step.
+  void spin();
+
 private:
   /// Read every parameter into an AgentConfig and validate it. Throws on a bad config --
   /// failing at startup is correct here; a silently defaulted neighbor list produces a
@@ -126,6 +141,10 @@ private:
   /// QP fails, or `max_staleness` is exceeded. Every one of those must be a defined,
   /// logged state rather than a stale input silently held forever.
   void enterSafeState(const std::string & reason);
+
+  /// Apply a topology change outside the control step (reconfigures transport and kernel;
+  /// not real-time safe, so deferred when a graph update arrives mid-solve).
+  void applyGraphUpdate(const std::vector<int> & neighbors);
 
   struct Impl;
   std::unique_ptr<Impl> impl_;

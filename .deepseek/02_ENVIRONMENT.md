@@ -15,7 +15,7 @@ Pinned, and pinned in one place each:
 | SciPy | ≥ 1.10 | `pyproject.toml` |
 | CVXPY | ≥ 1.4 | `pyproject.toml` — **DPP behaviour varies across minor versions, see §2.1 V8** |
 | OSQP (Python) | ≥ 0.6.3 | `pyproject.toml` |
-| **OSQP (C++)** | **UNVERIFIED — pin the version you build against** | `package.xml` (`osqp_vendor`), `CMakeLists.txt` |
+| **OSQP (C++)** | 1.0.0 (source build, tag `v1.0.0`) | `package.xml` (`osqp_vendor`), `CMakeLists.txt`, `test.yml` |
 | C++ | 20 (sources stay C++17-compatible, §16.7) | `CMAKE_CXX_STANDARD` in `CMakeLists.txt` |
 | CMake | ≥ 3.22 (range `3.22...3.31`) | `cmake_minimum_required` |
 | Eigen | 3.4 (system) | `package.xml` (`eigen`) |
@@ -43,9 +43,9 @@ one.
 | V6 | `ament_target_dependencies` is deprecated from Kilted onward | deprecation warnings, removal in a future distro | **verified in the sibling repos** — use `target_link_libraries` with `${pkg_TARGETS}` ([§3.4](03_BUILD_SYSTEM.md)); the skeleton already does |
 | V7 | `ament_copyright` does not understand bare SPDX identifiers | copyright lint fails with `license=<unknown>` | **verified in the sibling repos** — see §2.6 |
 | V8 | The CVXPY DPP formulation in [05_LOCAL_QP.md §5.4](05_LOCAL_QP.md) is accepted as DPP-compliant by your CVXPY version | no error, no crash — just a full re-canonicalisation on every solve, which makes a 4-agent closed-loop run roughly 100× slower and looks like "ADMM is slow" | assert `problem.is_dcp(dpp=True)` in `CvxpyAgentSolver.__init__` and **raise if False**. Do not let this degrade silently. |
-| V9 | `osqp_vendor` resolves through rosdep on `lyrical` | `colcon build` fails at `find_package(osqp)` | `rosdep resolve osqp_vendor --rosdistro lyrical` in the container. If it does not, build OSQP from source in the workflow ([§14.3](14_CI.md)) and pin the tag here. |
-| V10 | The OSQP **1.x** C API (`OSQPSolver`, `osqp_setup`, `osqp_update_data_vec`, `osqp_update_data_mat`) is what you have | compile errors, or worse, an update call that silently does nothing and leaves the QP solving last iteration's problem | read the installed `osqp.h`. The 0.6 API is different (`OSQPWorkspace`, `osqp_update_lin_cost`, `osqp_update_bounds`). Put the verified names in a comment in `per_agent_qp.cpp`. |
-| V11 | OSQP accepts `P` supplied as **upper-triangular** CSC | silently wrong Hessian; the solve succeeds and returns the optimum of a different problem | read the installed docs and assert it in `SetupSucceedsAndHessianIsPsd` ([§10.4](10_TESTS.md)) |
+| V9 | `osqp_vendor` resolves through rosdep on `lyrical` | `colcon build` fails at `find_package(osqp)` | **resolved** — not relied upon. The workflow builds OSQP 1.0.0 from source (tag `v1.0.0`) and skips `osqp_vendor` explicitly ([§14.3](14_CI.md)). |
+| V10 | The OSQP **1.x** C API (`OSQPSolver`, `osqp_setup`, `osqp_update_data_vec`, `osqp_update_data_mat`) is what you have | compile errors, or worse, an update call that silently does nothing and leaves the QP solving last iteration's problem | **resolved** — OSQP 1.0.0 (`osqp.h`) verified; `per_agent_qp.cpp` uses the 1.x names (`OSQPSolver`, `osqp_setup`, `osqp_update_data_vec`, `osqp_update_data_mat`). |
+| V11 | OSQP accepts `P` supplied as **upper-triangular** CSC | silently wrong Hessian; the solve succeeds and returns the optimum of a different problem | **resolved** — `per_agent_qp.cpp` builds `P` upper-triangular CSC, and `SetupSucceedsAndHessianIsPsd` asserts `row <= col` on the stored Hessian. |
 
 Where a row turns out false, **fix the pin and update the table row to say what is actually true.**
 Do not leave a stale assumption here — a version register nobody trusts is worse than no register.
@@ -58,8 +58,8 @@ you a correct-looking wrong answer, which is this repository's characteristic fa
 The Python side gets OSQP through CVXPY and needs nothing special. The C++ side needs the library
 and headers.
 
-Preferred: `osqp_vendor` through rosdep (risk V9). If that does not resolve, build from source with
-a pinned tag:
+OSQP is built from source at the pinned tag `v1.0.0` (risk V9 resolved: `osqp_vendor` is not
+relied upon). Build command:
 
 ```bash
 git clone --recursive https://github.com/osqp/osqp.git && cd osqp
@@ -67,8 +67,8 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DOS
 cmake --build build --target install -j"$(nproc)"
 ```
 
-**Record the tag you actually built** here and in the workflow. `main` is not a pin, and "whatever
-was current in August" is not reproducible.
+The tag is `v1.0.0`, recorded here and in `.github/workflows/test.yml` ([§14.3](14_CI.md)).
+`main` is not a pin, and "whatever was current in August" is not reproducible.
 
 **Do not vendor a copy of OSQP into this repository.** It is a dependency, and a vendored solver
 that drifts from the packaged one produces a parity failure that looks like a bug in the

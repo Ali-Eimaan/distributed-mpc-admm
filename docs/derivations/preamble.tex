@@ -4,8 +4,10 @@
 % Shared preamble for every document in docs/derivations/.
 % Included via \input{preamble}. Define macros here only -- never in an individual file,
 % or the three documents will drift into inconsistent notation.
-
-% TODO(deepseek §13.2): complete the package list and macro definitions below.
+%
+% Notation single-source-of-truth: docs/README_math.md section 1. Every macro below
+% corresponds one-to-one to a row of that table; do not add a symbol there without a
+% macro here (or vice versa).
 
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath, amssymb, amsthm}
@@ -29,16 +31,26 @@
 \newtheorem{remark}[theorem]{Remark}
 
 % --- notation ---------------------------------------------------------------------
-% TODO(deepseek §13.2): one macro per symbol in docs/README_math.md section 1. Suggested starting set:
-%
-% \newcommand{\R}{\mathbb{R}}
-% \newcommand{\Nbr}[1]{\mathcal{N}_{#1}}          % open neighborhood
-% \newcommand{\Nbrc}[1]{\bar{\mathcal{N}}_{#1}}   % closed neighborhood
-% \newcommand{\ycopy}[2]{y_{#1}^{#2}}             % local copy
-% \newcommand{\zcon}[1]{z^{#1}}                   % consensus variable
-% \newcommand{\dual}[2]{\lambda_{#1}^{#2}}        % scaled dual
-% \newcommand{\Lagr}{\mathcal{L}}
-% \newcommand{\Lrho}{\Lagr_\rho}
-% \newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
-% \newcommand{\prox}{\operatorname{prox}}
-% \DeclareMathOperator*{\argmin}{arg\,min}
+% One macro per symbol in docs/README_math.md section 1.
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Nbr}{\mathcal{N}}                   % open neighborhood (subscript written as \Nbr_i)
+\newcommand{\Nbrc}{\bar{\mathcal{N}}}            % closed neighborhood (subscript written as \Nbrc_i)
+\newcommand{\ycopy}[2]{y_{#1}^{#2}}             % local copy
+\newcommand{\zcon}[1]{z^{#1}}                   % consensus variable
+\newcommand{\dual}[2]{\lambda_{#1}^{#2}}        % scaled dual (code `lam`)
+\newcommand{\udual}[2]{\nu_{#1}^{#2}}           % unscaled dual = rho * scaled
+\newcommand{\Lagr}{\mathcal{L}}
+\newcommand{\Lrho}{\Lagr_\rho}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\prox}{\operatorname{prox}}
+\newcommand{\grad}{\nabla}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\tr}{\operatorname{tr}}
+\newcommand{\Eset}{\mathcal{E}}                 % formation-edge set
+\newcommand{\Gset}{\mathcal{G}}                 % communication graph
+\newcommand{\Fiedler}{\lambda_2(L)}             % algebraic connectivity
+\newcommand{\lmax}{\lambda_{\max}}
+\newcommand{\lmin}{\lambda_{\min}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}

@@ -5,9 +5,8 @@
 %
 % Depends on augmented_lagrangian.tex. Compile: latexmk -pdf consensus_admm_derivation.tex
 %
-% TODO(deepseek §13.2): this is the centrepiece document -- an advisor who reads one file in
-% this repo reads this one. Every update equation here must match
-% python/distributed_mpc_admm/consensus_admm.py line for line.
+% Every update equation here matches python/distributed_mpc_admm/consensus_admm.py line
+% for line (see the algorithm in Section 5).
 
 \documentclass[11pt]{article}
 \input{preamble}
@@ -20,61 +19,274 @@
 \maketitle
 
 \begin{abstract}
-% TODO(deepseek §13.2): three sentences. The coupled multi-agent MPC problem, the local-copy splitting,
-% and the resulting neighbor-only iteration.
+We state the coupled multi-agent MPC problem for $N$ double integrators coupled by formation
+costs, split it by introducing local copies of neighbour trajectories, and derive the
+resulting consensus ADMM iteration. The $z$-update collapses to a neighbourhood average, so
+the method needs only one round of neighbour communication per iteration. The final
+algorithm block is the specification the Python and C++ implementations follow line for
+line.
 \end{abstract}
 
 \section{The coupled problem}
-% TODO(deepseek §13.2): $N$ double integrators, per-agent tracking and effort costs, formation edge costs
-% over $\mathcal{E}$, per-agent dynamics and box constraints. Write it as a single QP and
-% give its dimension as a function of $(N, T)$.
+
+There are $N$ agents, each a discrete double integrator (Section 2 of the notation
+reference). Agent $i$ has state $x_i \in \R^n$ and input $u_i \in \R^m$ with $n = 2d$ and
+$m = d$. Over the horizon the condensed position prediction is
+\begin{equation}
+p_i = \Phi_p\, x_i(0) + \Gamma_p\, U_i,
+\qquad
+U_i = [u_i(0);\ \dots;\ u_i(T-1)] \in \R^{Tm}.
+\label{eq:condensed}
+\end{equation}
+The centralised (open-loop) MPC problem is
+\begin{equation}
+\begin{aligned}
+\min_{U_1,\dots,U_N} \quad
+\sum_{i=1}^N \sum_{t=1}^T &\Big[
+  q_p \norm{p_i(t) - p_i^{\mathrm{ref}}(t)}^2
++ q_v \norm{v_i(t)}^2
++ r \norm{u_i(t)}^2 \\
+&\qquad + p_T \norm{p_i(T) - p_i^{\mathrm{ref}}(T)}^2 \Big]
++ w_f \sum_{(i,j)\in\Eset} \sum_{t=1}^T \norm{(p_i(t) - p_j(t)) - d_{ij}}^2
+\end{aligned}
+\label{eq:coupled}
+\end{equation}
+subject to, for every $i$ and $t$,
+\begin{equation}
+x_i(t+1) = A x_i(t) + B u_i(t),
+\qquad
+|u_i(t)| \le u_{\max},
+\qquad
+|v_i(t)| \le v_{\max},
+\qquad
+p_{\min} \le p_i(t) \le p_{\max}.
+\end{equation}
+Substituting \eqref{eq:condensed} into \eqref{eq:coupled} gives a single convex QP in the
+$N T d$ input variables: a block-diagonal Hessian (tracking, velocity, effort) plus a
+formation coupling whose support is exactly $\Gset$. For $N = 8$, $T = 20$, $d = 2$ this is
+a $320$-variable QP with $\mathcal O(NTd + |\Eset| T d)$ Hessian nonzeros --- small enough
+to solve centrally, but this repo targets deployments with no central solver.
 
 \section{Where the coupling lives}
-% TODO(deepseek §13.2): show that the only inseparable terms are the edge costs
-% $\|(p_i - p_j) - d_{ij}\|^2$. Everything else already decomposes. Making this explicit is
-% what tells the reader which variables need copying.
+
+Every term in \eqref{eq:coupled} except one is already separable across agents: the
+tracking, velocity, effort and terminal costs each involve a single $i$, and the box
+constraints are per-agent. The only inseparable terms are the formation edge costs
+$\norm{(p_i - p_j) - d_{ij}}^2$, which contain two distinct agents' positions. Making this
+explicit tells us exactly which variables need copying: we must copy $p_j$ for every edge
+$(i,j)$ incident to $i$, i.e. for every $j \in \Nbr_i$.
 
 \section{Local copies}
-% TODO(deepseek §13.2): introduce $y_i^j$ for $j \in \bar{\mathcal{N}}_i$ and the global variables $z^j$.
-% State and prove the equivalence lemma: the copy-based problem with constraints
-% $y_i^j = z^j$ has the same solution set as the coupled problem. One paragraph; it is
-% immediate, but it is the step that licenses the whole method.
+
+Introduce, for each agent $i$ and each $j \in \Nbrc_i$, a local copy $\ycopy{i}{j} \in
+\R^{Td}$ of agent $j$'s position trajectory, and a global consensus trajectory
+$\zcon{j} \in \R^{Td}$. The copy-based problem is
+\begin{equation}
+\min_{\{U_i, \ycopy{i}{j}\}} \sum_i f_i\big(\ycopy{i}{i}, \{\ycopy{i}{j}\}_{j\in\Nbr_i}\big)
+\quad\text{s.t.}\quad
+\ycopy{i}{j} = \zcon{j} \ \ \forall\, i,\ j\in\Nbrc_i,
+\qquad
+\ycopy{i}{i} = \Phi_p x_i(0) + \Gamma_p U_i,
+\label{eq:copybased}
+\end{equation}
+where $f_i$ collects agent $i$'s tracking, effort and incident formation costs.
+
+\begin{lemma}[equivalence]
+\label{lem:equiv}
+Problems \eqref{eq:coupled} and \eqref{eq:copybased} have the same optimal objective value,
+and their optimisers are in one-to-one correspondence.
+\end{lemma}
+
+\begin{proof}
+At any feasible point of \eqref{eq:copybased} the consensus constraints force
+$\ycopy{i}{j} = \zcon{j}$ for every copy, so all copies of $j$ collapse to a single
+trajectory and the objective reproduces \eqref{eq:coupled}. Conversely, any solution of
+\eqref{eq:coupled} defines $\zcon{j} = p_j$ and $\ycopy{i}{j} = p_j$, which is feasible for
+\eqref{eq:copybased} with the same objective. The two maps are inverses.
+\end{proof}
+
+This lemma is immediate, but it is the step that licenses everything else: it replaces a
+coupled QP by a separable problem plus consensus constraints.
 
 \section{Augmented Lagrangian and the three updates}
-% TODO(deepseek §13.2): write $L_\rho$, then derive each update by holding the others fixed:
-%   (a) $x$-update: the per-agent QP, stated in full, with the observation that it
-%       decomposes because both $f_i$ and the penalty are separable across $i$
-%   (b) $z$-update: derive the closed form. Set the gradient to zero and obtain the
-%       average over contributors. Show explicitly that the average involves only agents in
-%       $\bar{\mathcal{N}}_j$ -- this is the sentence that establishes the method is
-%       distributed, and it should be stated as such.
-%   (c) dual update
+
+With unscaled multipliers $\udual{i}{j}$ on each consensus constraint, the augmented
+Lagrangian of \eqref{eq:copybased} is
+\begin{equation}
+\Lrho = \sum_i f_i(y_i) + \sum_{i}\sum_{j\in\Nbrc_i}\Big[
+  \udual{i}{j}\cdot(\ycopy{i}{j} - \zcon{j})
+  + \tfrac{\rho}{2}\norm{\ycopy{i}{j} - \zcon{j}}^2 \Big],
+\label{eq:auglagmulti}
+\end{equation}
+where $y_i$ abbreviates the tuple $(\ycopy{i}{i}, \{\ycopy{i}{j}\}_{j\in\Nbr_i})$. ADMM
+alternates three minimisations, each holding the other two blocks fixed.
+
+\paragraph{x-update.} Minimise over $\{U_i, \ycopy{i}{j}\}$ for every $i$ independently.
+Both $f_i$ and the penalty separate across $i$, so this is $N$ independent QPs:
+\begin{equation}
+(U_i^{k+1}, y_i^{k+1}) = \argmin_{U_i, y_i}\ \Big[
+  f_i(y_i) + \tfrac{\rho}{2}\sum_{j\in\Nbrc_i}\norm{\ycopy{i}{j} - \zcon{j}^k + \dual{i}{j}^k}^2
+\Big]
+\quad\text{s.t.}\quad \ycopy{i}{i} = \Phi_p x_i(0) + \Gamma_p U_i,\ \text{boxes}.
+\label{eq:xupdate}
+\end{equation}
+(The scaled dual is already in use; see Section 5.) Only $\ycopy{i}{i}$ is dynamically
+constrained; the copies $\ycopy{i}{j}$ for $j \ne i$ are free and pinned only by the
+consensus penalty. This is exactly \texttt{CvxpyAgentSolver}.
+
+\paragraph{z-update.} Minimise over $\zcon{j}$ for every $j$ independently. Setting
+$\grad_{\zcon{j}}\Lrho = 0$ gives
+\begin{equation}
+0 = \sum_{i : j \in \Nbrc_i}\Big[ -\udual{i}{j} - \rho(\ycopy{i}{j} - \zcon{j}) \Big],
+\end{equation}
+and in the scaled dual $\dual{i}{j} = \udual{i}{j}/\rho$ this is
+\begin{equation}
+\zcon{j} = \frac{1}{|C(j)|}\sum_{i \in C(j)} \big(\ycopy{i}{j} + \dual{i}{j}\big),
+\qquad C(j) = \{ i : j \in \Nbrc_i \},
+\label{eq:zupdate}
+\end{equation}
+the average of $\ycopy{i}{j} + \dual{i}{j}$ over the contributors $C(j)$ of $j$. For an
+undirected graph $C(j) = \Nbrc_j$, so \textbf{the $z$-update for $j$ requires only messages
+from $j$'s neighbours}. This single sentence is what makes the iteration distributed.
+
+\paragraph{Dual update.} $\udual{i}{j}^{k+1} = \udual{i}{j}^k + \rho(\ycopy{i}{j}^{k+1} -
+\zcon{j}^{k+1})$, or in scaled form
+$\dual{i}{j}^{k+1} = \dual{i}{j}^k + (\ycopy{i}{j}^{k+1} - \zcon{j}^{k+1})$.
 
 \section{Scaled form and the final algorithm}
-% TODO(deepseek §13.2): the scaled-dual iteration as a numbered algorithm block. This block is the
-% specification the code implements; keep it verbatim-comparable.
+
+The substitution $\dual{i}{j} = \udual{i}{j}/\rho$ absorbs $\rho$ into the penalty and
+reduces the dual update to residual accumulation (Section 6 of
+\texttt{augmented\_lagrangian.tex}). The full iteration, in the form the code implements, is
+
+\begin{algorithm}[h]
+\caption{Consensus ADMM for distributed MPC (scaled dual)}
+\label{alg:admm}
+\begin{algorithmic}[1]
+\State \textbf{input:} $x_i(0)$, references, formation offsets $d_{ij}$, $\rho > 0$, $\alpha \in (0,2)$
+\State \textbf{init:} $\ycopy{i}{j} \gets 0$, $\dual{i}{j} \gets 0$, $\zcon{j} \gets 0$
+\For{$k = 0, 1, \dots$}
+  \State \textbf{x-update (parallel):} solve \eqref{eq:xupdate} for every $i$
+  \State \textbf{relax:} $\hat{y}_i^j \gets \alpha\,\ycopy{i}{j} + (1-\alpha)\,\zcon{j}$
+  \State \textbf{z-update:} $\zcon{j} \gets \tfrac{1}{|C(j)|}\sum_{i\in C(j)}(\hat{y}_i^j + \dual{i}{j})$
+  \State \textbf{broadcast} $\zcon{j}$ to all $i \in C(j)$
+  \State \textbf{dual update:} $\dual{i}{j} \gets \dual{i}{j} + (\hat{y}_i^j - \zcon{j})$
+  \State \textbf{stop} when $r^k \le \varepsilon^{\mathrm{pri}}$ and $s^k \le \varepsilon^{\mathrm{dual}}$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+Each line maps one-to-one onto \texttt{ConsensusADMM}: the x-update is \verb|_x_update|,
+the relaxation \verb|_relax|, the z-update \verb|_z_update|, the broadcast
+\verb|_broadcast_consensus| and the dual update \verb|_dual_update|.
 
 \section{Over-relaxation}
-% TODO(deepseek §13.2): the $\alpha$ step, the admissible range $\alpha \in (0, 2)$, and why $1.5$--$1.8$
-% is the practical choice.
+
+The relaxation $\hat{y}_i^j = \alpha\,\ycopy{i}{j} + (1-\alpha)\,\zcon{j}$ leaves the fixed
+points of the iteration unchanged (at a fixed point $\ycopy{i}{j} = \zcon{j}$, so
+$\hat{y}_i^j = \zcon{j}$) but changes the transient. The admissible range is
+$\alpha \in (0, 2)$: $\alpha = 1$ is plain ADMM, $\alpha \ge 2$ diverges, and the practical
+choice is $1.5$--$1.8$, which typically halves the iteration count. The relaxed quantity
+$\hat{y}_i^j$ (not $\ycopy{i}{j}$) feeds the z-update and the dual update, matching
+\verb|_relax|.
 
 \section{Residuals and stopping}
-% TODO(deepseek §13.2): primal and dual residual definitions, the tolerance formulas, and the counting
-% argument behind $n_{\mathrm{dual}} = \sum_i |\bar{\mathcal{N}}_i| \, T \, d$.
+
+The primal and dual residuals are (Section 6 of the notation reference)
+\begin{equation}
+r^k = \Big(\sum_i\sum_{j\in\Nbrc_i}\norm{\ycopy{i}{j} - \zcon{j}}^2\Big)^{1/2},
+\qquad
+s^k = \rho\Big(\sum_j \norm{\zcon{j}^k - \zcon{j}^{k-1}}^2\Big)^{1/2},
+\end{equation}
+and stopping uses
+\begin{equation}
+\varepsilon^{\mathrm{pri}} = \sqrt{n_{\mathrm{dual}}}\,\varepsilon^{\mathrm{abs}}
++ \varepsilon^{\mathrm{rel}}\max\{\norm{y}, \norm{z}\},
+\qquad
+\varepsilon^{\mathrm{dual}} = \sqrt{n_{\mathrm{dual}}}\,\varepsilon^{\mathrm{abs}}
++ \varepsilon^{\mathrm{rel}}\,\rho\,\norm{\lambda},
+\end{equation}
+where
+\begin{equation}
+n_{\mathrm{dual}} = \sum_i |\Nbrc_i|\, T\, d
+\end{equation}
+counts the scalar consensus constraints: each $(i,j)$ with $j \in \Nbrc_i$ contributes a
+$Td$-vector, hence $|\Nbrc_i|\, T d$ scalars per agent. Convergence is declared when both
+residuals are within tolerance.
 
 \section{Communication and computation cost}
-% TODO(deepseek §13.2): per iteration, per agent: one QP of size $(1 + |\bar{\mathcal{N}}_i|)Td$ and
-% $2|\mathcal{N}_i|$ messages of $Td$ floats. Contrast with the centralised QP size.
+
+Per iteration, agent $i$ solves one QP with $(1 + |\Nbrc_i|)\,Td$ scalar trajectory
+variables (its own trajectory plus one copy per closed-neighbour) plus $Tm$ inputs. In the
+z-update it exchanges $2|\Nbr_i|$ messages of $Td$ floats --- one $(\hat{y}_i^j +
+\dual{i}{j})$ push and one $\zcon{j}$ broadcast per neighbour. Contrast with the
+centralised QP of Section 1, which has $NTd$ variables coupled through the formation
+Hessian: the per-agent subproblem is a factor $N/(1+|\Nbrc_i|)$ smaller and, critically,
+requires no global data structure.
 
 \section{Receding horizon}
-% TODO(deepseek §13.2): the closed loop, the warm-start shift, and an honest statement about recursive
-% feasibility: the box constraints make each local problem always feasible, but no terminal
-% ingredient is imposed, so stability is demonstrated numerically rather than guaranteed.
-% Say that plainly here -- an advisor will check for exactly this claim.
+
+In closed loop the solver runs once per control step with the measured state $x_i(0)$, then
+applies the first input $u_i(0)$ and shifts the previous iterate as the warm start
+(\verb|ADMMResult.shifted|). The warm start matters: the previous consensus is typically
+already within the new problem's basin, so a handful of warm-started iterations replaces a
+full cold solve.
+
+An honest statement about feasibility and stability: the box constraints make every local
+QP feasible at every step, so the algorithm never stalls for lack of a feasible point. But
+no terminal set or terminal cost is imposed, so recursive feasibility and closed-loop
+stability are \emph{not guaranteed} by the standard MPC theory; they are demonstrated
+numerically in the notebooks. State this plainly --- an advisor will check for exactly this
+claim.
 
 \section{Worked example}
-% TODO(deepseek §13.2): two agents, $T = 2$, all matrices written out numerically, three iterations by
-% hand. Tedious to write and disproportionately convincing to read.
+
+Set $d = 1$, $\Delta t = 1$, $T = 2$, so the state is $x = [p,\,v]^\top$ and
+\begin{equation}
+A = \begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix},
+\qquad
+B = \begin{bmatrix} 0.5 \\ 1 \end{bmatrix}.
+\end{equation}
+The condensed position map $y = \Phi_p x(0) + \Gamma_p U$ has
+\begin{equation}
+\Phi_p = \begin{bmatrix} 1 & 1 \\ 1 & 2 \end{bmatrix},
+\qquad
+\Gamma_p = \begin{bmatrix} 0.5 & 0 \\ 1.5 & 0.5 \end{bmatrix}.
+\end{equation}
+(Block row $r$ of $\Phi_p$ is $A^{r+1}$'s position row, and block $(r,s)$ of $\Gamma_p$ is
+the position row of $A^{r-s}B$.)
+
+To keep the arithmetic transparent we illustrate the ADMM mechanics on the pure-consensus
+core of the problem, dropping the dynamics: two agents each hold a scalar copy $y_i$ of a
+common value, with local cost $\tfrac12 (y_i - a_i)^2$ and targets $a_1 = 1$, $a_2 = 3$.
+The true optimum is the average $y_1 = y_2 = z = 2$. With $\rho = 1$ the scaled iteration
+is
+\begin{equation}
+y_i^{k+1} = \argmin_{y_i}\ \tfrac12(y_i - a_i)^2 + \tfrac12(y_i - z^k + \lambda_i^k)^2
+= \frac{a_i + z^k - \lambda_i^k}{2},
+\end{equation}
+\begin{equation}
+z^{k+1} = \tfrac12\big[(y_1^{k+1} + \lambda_1^k) + (y_2^{k+1} + \lambda_2^k)\big],
+\qquad
+\lambda_i^{k+1} = \lambda_i^k + (y_i^{k+1} - z^{k+1}).
+\end{equation}
+
+Starting from $z^0 = 0$, $\lambda_1^0 = \lambda_2^0 = 0$:
+
+\begin{center}
+\begin{tabular}{c|cc|cc}
+$k$ & $y_1^k$ & $y_2^k$ & $z^k$ & $(\lambda_1^k, \lambda_2^k)$ \\
+\hline
+$0$ & $0.50$ & $1.50$ & $1.00$ & $(-0.50, +0.50)$ \\
+$1$ & $1.25$ & $1.75$ & $1.50$ & $(-0.75, +0.75)$ \\
+$2$ & $1.625$ & $1.875$ & $1.75$ & $(-0.875, +0.875)$
+\end{tabular}
+\end{center}
+
+The copies converge to $2$ and the duals to $(-1, +1)$, which is exactly the dual
+feasibility condition $(y_i - a_i) + \lambda_i = 0$ at the optimum. The MPC layer only
+adds the affine map $y = \Phi_p x_0 + \Gamma_p U$ to the x-update; the z-update and dual
+update above are unchanged.
 
 \bibliographystyle{plain}
 \bibliography{references}

@@ -4,9 +4,6 @@
 cmake_minimum_required(VERSION 3.22...3.31)
 project(cpp_admm)
 
-# TODO(deepseek §3.2): this file is complete enough to configure; verify it builds once the
-# sources compile, and delete this comment.
-
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -70,6 +67,15 @@ if(BUILD_TESTING)
   ament_add_gtest(test_admm_kernel test/test_admm_kernel.cpp)
   if(TARGET test_admm_kernel)
     target_link_libraries(test_admm_kernel admm_kernel)
+    target_compile_definitions(test_admm_kernel PRIVATE
+      CPP_ADMM_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/data")
+    find_package(nlohmann_json QUIET)
+    if(nlohmann_json_FOUND)
+      target_link_libraries(test_admm_kernel nlohmann_json::nlohmann_json)
+    else()
+      # Header-only fallback: nlohmann/json.hpp is on the system include path.
+      message(STATUS "nlohmann_json CMake package not found; relying on system header")
+    endif()
   endif()
 endif()
 

@@ -33,7 +33,6 @@ linear penalty rather than a bare equality.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -86,7 +85,14 @@ class FormationSpec:
         cls, n_agents: int, radius: float, graph: CommunicationGraph | None = None
     ) -> FormationSpec:
         """Agents evenly spaced on a circle. Defaults to a cycle communication graph."""
-        raise NotImplementedError
+        if n_agents < 1:
+            raise ValueError(f"n_agents must be positive, got {n_agents}")
+        angles = 2 * np.pi * np.arange(n_agents) / n_agents
+        offsets = radius * np.column_stack([np.cos(angles), np.sin(angles)])
+        offsets = offsets - offsets.mean(axis=0)
+        if graph is None:
+            graph = CommunicationGraph.cycle(n_agents)
+        return cls(offsets=offsets, graph=graph, name=f"regular_polygon_{n_agents}")
 
     @classmethod
     def line(
@@ -97,7 +103,15 @@ class FormationSpec:
         graph: CommunicationGraph | None = None,
     ) -> FormationSpec:
         """Agents in a straight line. Defaults to a path graph (the hardest topology)."""
-        raise NotImplementedError
+        if n_agents < 1:
+            raise ValueError(f"n_agents must be positive, got {n_agents}")
+        direction = np.array([np.cos(heading), np.sin(heading)])
+        positions = (np.arange(n_agents) - (n_agents - 1) / 2) * spacing
+        offsets = np.outer(positions, direction)
+        offsets = offsets - offsets.mean(axis=0)
+        if graph is None:
+            graph = CommunicationGraph.path(n_agents)
+        return cls(offsets=offsets, graph=graph, name=f"line_{n_agents}")
 
     @classmethod
     def v_shape(
@@ -108,7 +122,20 @@ class FormationSpec:
         graph: CommunicationGraph | None = None,
     ) -> FormationSpec:
         """Two trailing arms behind agent 0; the classic aerial formation demo."""
-        raise NotImplementedError
+        if n_agents < 1:
+            raise ValueError(f"n_agents must be positive, got {n_agents}")
+        offsets = np.zeros((n_agents, 2))
+        cos_a = np.cos(half_angle)
+        sin_a = np.sin(half_angle)
+        for k in range(1, n_agents):
+            slot = (k + 1) // 2
+            side = 1.0 if k % 2 == 1 else -1.0
+            dist = slot * spacing
+            offsets[k] = [-dist * cos_a, side * dist * sin_a]
+        offsets = offsets - offsets.mean(axis=0)
+        if graph is None:
+            graph = CommunicationGraph.path(n_agents)
+        return cls(offsets=offsets, graph=graph, name=f"v_shape_{n_agents}")
 
     @classmethod
     def grid(
@@ -119,41 +146,68 @@ class FormationSpec:
         graph: CommunicationGraph | None = None,
     ) -> FormationSpec:
         """Rectangular lattice; defaults to the 4-neighbour lattice graph."""
-        raise NotImplementedError
+        if rows < 1 or cols < 1:
+            raise ValueError(f"rows and cols must be positive, got {rows}x{cols}")
+        offsets = np.zeros((rows * cols, 2))
+        for r in range(rows):
+            for c in range(cols):
+                offsets[r * cols + c] = [c * spacing, r * spacing]
+        offsets = offsets - offsets.mean(axis=0)
+        if graph is None:
+            graph = cls._grid_graph(rows, cols)
+        return cls(offsets=offsets, graph=graph, name=f"grid_{rows}x{cols}")
 
     @classmethod
     def rendezvous(cls, n_agents: int, graph: CommunicationGraph) -> FormationSpec:
         """All offsets zero — pure consensus."""
-        raise NotImplementedError
+        if n_agents < 1:
+            raise ValueError(f"n_agents must be positive, got {n_agents}")
+        return cls(offsets=np.zeros((n_agents, 2)), graph=graph, name="rendezvous")
+
+    @staticmethod
+    def _grid_graph(rows: int, cols: int) -> CommunicationGraph:
+        """4-neighbour rectangular lattice over a row-major agent ordering."""
+        edges: set[tuple[int, int]] = set()
+        for r in range(rows):
+            for c in range(cols):
+                u = r * cols + c
+                if r + 1 < rows:
+                    edges.add((u, (r + 1) * cols + c))
+                if c + 1 < cols:
+                    edges.add((u, r * cols + c + 1))
+        return CommunicationGraph(rows * cols, edges)
 
     # ------------------------------------------------------------------ geometry
 
     @property
     def n_agents(self) -> int:
-        raise NotImplementedError
+        return self.offsets.shape[0]
 
     @property
     def dim(self) -> int:
-        raise NotImplementedError
+        return self.offsets.shape[1]
 
     def anchor_offsets(self) -> NDArray[np.float64]:
         """``offsets`` after applying ``scale`` and ``rotation``; shape ``(N, dim)``."""
-        raise NotImplementedError
+        cos_r = np.cos(self.rotation)
+        sin_r = np.sin(self.rotation)
+        rotation = np.array([[cos_r, -sin_r], [sin_r, cos_r]])
+        return self.scale * (self.offsets @ rotation.T)
 
     def relative_offset(self, i: int, j: int) -> NDArray[np.float64]:
         """``d_ij = o_i - o_j``, shape ``(dim,)``. Antisymmetric: ``d_ji == -d_ij``."""
-        raise NotImplementedError
+        return self.anchor_offsets()[i] - self.anchor_offsets()[j]
 
     def edge_offsets(self, agent: int) -> dict[int, NDArray[np.float64]]:
         """``{j: d_ij}`` for every formation neighbor ``j`` of ``agent``.
 
         This is exactly what goes into ``LocalProblemData.offsets``.
         """
-        raise NotImplementedError
+        return {j: self.relative_offset(agent, j) for j in self.graph.neighbors(agent)}
 
     def target_positions(self, anchor: NDArray[np.float64]) -> NDArray[np.float64]:
         """Absolute desired positions given an anchor point; shape ``(N, dim)``."""
-        raise NotImplementedError
+        return np.asarray(anchor)[None, :] + self.anchor_offsets()
 
     # ------------------------------------------------------------------ rigidity
 
@@ -164,7 +218,14 @@ class FormationSpec:
         block ``j``, zeros elsewhere. Evaluated at ``positions`` (default: the nominal
         formation from :meth:`anchor_offsets`).
         """
-        raise NotImplementedError
+        positions = self.anchor_offsets() if positions is None else np.asarray(positions)
+        dim = self.dim
+        rigidity = np.zeros((len(self.graph.edges), self.n_agents * dim))
+        for row, (i, j) in enumerate(self.graph.edges):
+            diff = positions[i] - positions[j]
+            rigidity[row, i * dim : (i + 1) * dim] = diff
+            rigidity[row, j * dim : (j + 1) * dim] = -diff
+        return rigidity
 
     def is_infinitesimally_rigid(
         self, positions: NDArray[np.float64] | None = None, tol: float = 1e-8
@@ -174,11 +235,17 @@ class FormationSpec:
         A non-rigid formation still converges under this *offset* encoding, but reporting
         rigidity is the right diagnostic when comparing against distance-based encodings.
         """
-        raise NotImplementedError
+        rigidity = self.rigidity_matrix(positions)
+        rank = np.linalg.matrix_rank(rigidity, tol=tol)
+        trivial = self.dim * (self.dim + 1) // 2
+        return rank == self.dim * self.n_agents - trivial
 
     def rigidity_eigenvalue(self, positions: NDArray[np.float64] | None = None) -> float:
         """Smallest non-trivial eigenvalue of ``R^T R``; a continuous rigidity margin."""
-        raise NotImplementedError
+        rigidity = self.rigidity_matrix(positions)
+        eigenvalues = np.linalg.eigvalsh(rigidity.T @ rigidity)
+        index = self.dim * (self.dim + 1) // 2
+        return float(max(0.0, eigenvalues[index]))
 
     # ------------------------------------------------------------------ validation
 
@@ -189,7 +256,16 @@ class FormationSpec:
         disappears takes its formation cost term with it. Callers should catch it and
         decide whether to freeze the last cost or drop the term.
         """
-        raise NotImplementedError
+        if comm_graph.n_agents != self.n_agents:
+            raise ValueError(
+                f"communication graph has {comm_graph.n_agents} agents, "
+                f"formation has {self.n_agents}"
+            )
+        for i, j in self.graph.edges:
+            if not comm_graph.has_edge(i, j):
+                raise ValueError(
+                    f"formation edge ({i}, {j}) is missing from the communication graph"
+                )
 
 
 @dataclass
@@ -214,11 +290,11 @@ class LeaderFollowerSpec:
     follower_position_weight: float = 0.0
 
     def is_leader(self, agent: int) -> bool:
-        raise NotImplementedError
+        return agent in self.leaders
 
     def weight_for(self, agent: int, base_weight: float) -> float:
         """``base_weight`` for leaders, ``follower_position_weight`` otherwise."""
-        raise NotImplementedError
+        return base_weight if self.is_leader(agent) else self.follower_position_weight
 
     def validate_against(self, graph: CommunicationGraph) -> None:
         """Raise if the leader set cannot reach every agent over ``graph``.
@@ -227,7 +303,17 @@ class LeaderFollowerSpec:
         formation converges in *shape* but drifts as a rigid body — a real failure mode
         worth asserting on rather than debugging in a plot.
         """
-        raise NotImplementedError
+        reachable = set(self.leaders)
+        frontier = list(self.leaders)
+        while frontier:
+            agent = frontier.pop()
+            for neighbor in graph.neighbors(agent):
+                if neighbor not in reachable:
+                    reachable.add(neighbor)
+                    frontier.append(neighbor)
+        missing = [a for a in range(graph.n_agents) if a not in reachable]
+        if missing:
+            raise ValueError(f"agents {missing} are unreachable from the leader set {self.leaders}")
 
 
 @dataclass
@@ -256,7 +342,25 @@ def formation_error(
     ``positions`` is ``(N, dim)``. Reported in every closed-loop figure; the edge RMS is
     the headline number quoted in the README.
     """
-    raise NotImplementedError
+    positions = np.asarray(positions)
+    per_edge: dict[tuple[int, int], float] = {}
+    for i, j in spec.graph.edges:
+        d_ij = spec.relative_offset(i, j)
+        per_edge[(i, j)] = float(np.linalg.norm((positions[i] - positions[j]) - d_ij))
+
+    values = np.array(list(per_edge.values())) if per_edge else np.zeros(0)
+    edge_rms = float(np.sqrt(np.mean(values**2))) if values.size else 0.0
+    edge_max = float(np.max(values)) if values.size else 0.0
+    if anchor_reference is None:
+        centroid_error = 0.0
+    else:
+        centroid_error = float(np.linalg.norm(positions.mean(axis=0) - anchor_reference))
+    return FormationError(
+        edge_rms=edge_rms,
+        edge_max=edge_max,
+        centroid_error=centroid_error,
+        per_edge=per_edge,
+    )
 
 
 def formation_error_trajectory(
@@ -266,18 +370,22 @@ def formation_error_trajectory(
 ) -> NDArray[np.float64]:
     """Vectorised :func:`formation_error` over time. ``position_log`` is ``(K, N, dim)``;
     returns ``(K,)`` of edge-RMS values."""
-    raise NotImplementedError
+    return np.array(
+        [formation_error(positions, spec, anchor_reference).edge_rms for positions in position_log]
+    )
 
 
-def settling_step(
-    errors: NDArray[np.float64], tolerance: float, hold: int = 5
-) -> int | None:
+def settling_step(errors: NDArray[np.float64], tolerance: float, hold: int = 5) -> int | None:
     """First index after which ``errors`` stays below ``tolerance`` for ``hold`` steps.
 
     Returns ``None`` if the formation never settles. This is the metric plotted against
     algebraic connectivity in ``analysis/topology_robustness.ipynb``.
     """
-    raise NotImplementedError
+    errors = np.asarray(errors)
+    for k in range(len(errors) - hold + 1):
+        if np.all(errors[k:] < tolerance):
+            return k
+    return None
 
 
 def offsets_from_positions(
@@ -288,15 +396,22 @@ def offsets_from_positions(
     Used to freeze the current shape at a topology-switch instant, which is how a
     "merge" event is turned into a well-posed formation target.
     """
-    raise NotImplementedError
+    positions = np.asarray(positions)
+    offsets = positions - positions.mean(axis=0)
+    return FormationSpec(offsets=offsets, graph=graph, name="observed")
 
 
-def interpolate_formations(
-    start: FormationSpec, end: FormationSpec, alpha: float
-) -> FormationSpec:
+def interpolate_formations(start: FormationSpec, end: FormationSpec, alpha: float) -> FormationSpec:
     """Convex blend of two formations, ``alpha`` in ``[0, 1]``.
 
     A morph event is a time-parametrised sweep of ``alpha``; keeping it here (rather than
     inside the ADMM loop) keeps the solver oblivious to the event structure.
     """
-    raise NotImplementedError
+    if not 0.0 <= alpha <= 1.0:
+        raise ValueError(f"alpha must be in [0, 1], got {alpha}")
+    offsets = (1.0 - alpha) * start.anchor_offsets() + alpha * end.anchor_offsets()
+    return FormationSpec(
+        offsets=offsets,
+        graph=end.graph,
+        name=f"{start.name}->{end.name}",
+    )

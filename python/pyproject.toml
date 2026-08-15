@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "distributed-mpc-admm"
 version = "0.1.0"
 description = "Distributed MPC via consensus ADMM for double-integrator agents in 2D"
-readme = "../README.md"
+readme = { text = "Distributed MPC via consensus ADMM for double-integrator agents in 2D, with formation control and time-varying graphs. See the repository README for full documentation.", content-type = "text/plain" }
 requires-python = ">=3.12"
 license = "BSD-3-Clause"
 license-files = ["../LICENSE"]

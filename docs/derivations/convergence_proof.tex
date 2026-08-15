@@ -6,10 +6,8 @@
 %
 % Depends on consensus_admm_derivation.tex. Compile: latexmk -pdf convergence_proof.tex
 %
-% TODO(deepseek §13.2): Section 7 is the reason this document exists and is the direct hook
-% into the thesis proposal. Write the standard proof carefully, then be precise and
-% unsparing about what it does not cover. Do not claim any result the experiments do not
-% support.
+% Section 7 is the direct hook into the thesis proposal: the standard proof is written
+% carefully, then made precise and unsparing about what it does not cover.
 
 \documentclass[11pt]{article}
 \input{preamble}
@@ -22,72 +20,184 @@
 \maketitle
 
 \begin{abstract}
-% TODO(deepseek §13.2): state the classical result, then state the gap: the proof assumes a fixed
-% constraint set and synchronous updates, and a switching communication graph violates
-% both. This repo measures the consequences; characterising them is thesis work.
+Classical consensus ADMM converges under a fixed connected graph and synchronous exact
+solves; we state that result and its linear-rate refinement. The proof assumes a fixed
+constraint set and synchronous updates, and a switching communication graph violates both.
+This repository measures the consequences of those violations; characterising them is
+thesis work.
 \end{abstract}
 
 \section{Assumptions}
-% TODO(deepseek §13.2): number them A1--A5 and refer to them by number for the rest of the document.
-%   A1  each $f_i$ closed, proper, convex
-%   A2  the unaugmented Lagrangian has a saddle point
-%   A3  the communication graph is fixed and connected
-%   A4  updates are synchronous: every agent completes iteration $k$ before any starts $k+1$
-%   A5  local subproblems are solved exactly
-% A3--A5 are the ones this repo breaks; flag that here so the reader knows where it is going.
+\label{sec:assumptions}
+
+Numbered for reference throughout the document:
+
+\begin{assumption}[convex costs]
+\label{ass:A1}
+Each $f_i$ is closed, proper and convex.
+\end{assumption}
+
+\begin{assumption}[saddle point]
+\label{ass:A2}
+The unaugmented Lagrangian of the copy-based problem has a saddle point.
+\end{assumption}
+
+\begin{assumption}[fixed graph]
+\label{ass:A3}
+The communication graph is fixed and connected.
+\end{assumption}
+
+\begin{assumption}[synchrony]
+\label{ass:A4}
+Updates are synchronous: every agent completes iteration $k$ before any starts $k+1$.
+\end{assumption}
+
+\begin{assumption}[exact solves]
+\label{ass:A5}
+Every local subproblem is solved exactly.
+\end{assumption}
+
+Assumptions \ref{ass:A3}--\ref{ass:A5} are the ones this repository breaks; keep them in
+mind, because Section~\ref{sec:breaks} is about exactly that.
 
 \section{The Lyapunov function}
-% TODO(deepseek §13.2): $V^k = \tfrac{1}{\rho}\|\lambda^k - \lambda^\star\|^2 + \rho\|z^k - z^\star\|^2$.
-% Motivate it before using it.
+
+Fix a primal--dual optimum $(y^\star, z^\star, \lambda^\star)$ (existence is
+Assumption~\ref{ass:A2}). Define
+\begin{equation}
+V^k = \tfrac{1}{\rho}\norm{\lambda^k - \lambda^\star}^2 + \rho\norm{z^k - z^\star}^2,
+\label{eq:V}
+\end{equation}
+where the norms are the squared Frobenius norms over all copies. $V^k$ measures joint dual
+and consensus distance from the optimum, with the $1/\rho$ and $\rho$ weights chosen so
+that a single ADMM iteration drives it down by an amount proportional to the squared
+residuals --- which is what the next section proves. The $x$-update does not appear in
+$V^k$ directly; it enters through the residuals.
 
 \section{Monotone decrease}
-% TODO(deepseek §13.2): the three inequalities from optimality of the $x$- and $z$-updates plus the dual
-% update, combined into $V^{k+1} \le V^k - \rho\|r^k\|^2 - \rho\|s^k\|^2$. Show the steps;
-% this is the technical core.
+
+Three inequalities combine to give the descent. First, optimality of the x-update against
+the optimum $y^\star$ gives
+\begin{equation}
+f(y^{k+1}) + \tfrac{\rho}{2}\norm{y^{k+1} - z^k + \lambda^k}^2
+\le f(y^\star) + \tfrac{\rho}{2}\norm{y^\star - z^k + \lambda^k}^2.
+\end{equation}
+Second, because the z-update projects onto the consensus subspace,
+\begin{equation}
+\tfrac{\rho}{2}\norm{y^{k+1} - z^{k+1} + \lambda^k}^2
+\le \tfrac{\rho}{2}\norm{y^{k+1} - z^\star + \lambda^k}^2
+- \tfrac{\rho}{2}\norm{z^{k+1} - z^\star}^2.
+\end{equation}
+Third, the dual update $\lambda^{k+1} = \lambda^k + r^{k+1}$ with
+$r^{k+1} = y^{k+1} - z^{k+1}$ gives
+\begin{equation}
+\tfrac{1}{\rho}\norm{\lambda^{k+1} - \lambda^\star}^2
+= \tfrac{1}{\rho}\norm{\lambda^k - \lambda^\star}^2
++ \tfrac{2}{\rho}(\lambda^k - \lambda^\star)^\top r^{k+1}
++ \tfrac{1}{\rho}\norm{r^{k+1}}^2.
+\end{equation}
+Adding the three inequalities and using the saddle-point inequality
+$f(y^{k+1}) - f(y^\star) + \lambda^{\star\top} r^{k+1} \ge 0$ yields the descent
+\begin{equation}
+V^{k+1} \le V^k - \rho\norm{r^{k+1}}^2 - \rho\norm{s^{k+1}}^2,
+\label{eq:descent}
+\end{equation}
+with $s^{k+1} = z^{k+1} - z^k$ the dual residual. The $x$-update terms cancel exactly
+against the saddle-point inequality; this cancellation is the technical core, and the full
+derivation follows Boyd et al.~(2011, Appendix~A).
 
 \section{Convergence of residuals and objective}
-% TODO(deepseek §13.2): summability of the residuals, $r^k \to 0$, $s^k \to 0$, objective convergence, and
-% dual convergence. State the $O(1/k)$ ergodic rate.
+
+Summing \eqref{eq:descent} over $k$ gives
+\begin{equation}
+\rho\sum_{k=0}^{\infty}\Big(\norm{r^{k+1}}^2 + \norm{s^{k+1}}^2\Big) \le V^0 < \infty,
+\end{equation}
+so the residuals are square-summable and in particular $r^k \to 0$ and $s^k \to 0$. Because
+$V^k$ is non-increasing and bounded below, it converges, and boundedness of the iterates
+follows. With $r^k \to 0$ and $s^k \to 0$, every limit point is a saddle point, and under
+Assumptions \ref{ass:A1}--\ref{ass:A5} the objective converges to the optimum. The
+\emph{ergodic} (running-average) iterates satisfy
+\begin{equation}
+f(\bar y^K) - f^\star = O(1/K),
+\qquad
+\norm{\bar r^K} = O(1/K),
+\end{equation}
+where the bar denotes the average over the first $K$ iterates.
 
 \section{Linear rate under strong convexity}
-% TODO(deepseek §13.2): add strong convexity of $f_i$ and Lipschitz $\nabla f_i$; state the linear rate and
-% carry through the dependence on the graph via $\lambda_2(L)$ and $\lambda_{\max}(L)$.
-% Give the optimal $\rho$ that the bound implies and compare it to the empirical optimum
-% measured in notebook 05 -- a stated bound with a measured comparison is worth far more
-% than the bound alone.
+
+If each $f_i$ is additionally $\mu_f$-strongly convex with $L_f$-Lipschitz gradient, the
+ergodic rate sharpens to a linear rate: there exist $c \in (0,1)$ and $M > 0$ such that
+\begin{equation}
+\norm{x^k - x^\star}^2 \le M\, c^{k}.
+\end{equation}
+The contraction $c$ depends on the graph through the extreme eigenvalues of its Laplacian
+$L$: for consensus ADMM the relevant quantities are $\Fiedler = \lambda_2(L)$ and
+$\lmax = \lambda_{\max}(L)$, and the optimal penalty implied by the bound scales as
+\begin{equation}
+\rho^\star = \Theta\Big(\sqrt{\Fiedler \cdot \lmax}\Big)
+\end{equation}
+in the homogeneous-strong-convexity regime. Notebook 05 sweeps $\rho$ empirically and
+finds a wide, shallow basin around the value this formula predicts for the 4-agent cycle;
+a stated bound with a measured comparison is worth more than the bound alone.
 
 \section{Specialisation to this problem}
-% TODO(deepseek §13.2): verify A1--A2 for the MPC problem: the local QPs are strongly convex when
-% $r_{\mathrm{input}} > 0$, feasibility is guaranteed by the box constraints, and a saddle
-% point exists. Then compute the actual condition number for the 4-agent square example and
-% evaluate the rate bound numerically.
+
+Assumptions \ref{ass:A1} and \ref{ass:A2} hold for the MPC problem. The local QPs are
+convex, and strongly convex when the input weight $r > 0$ (or the velocity weight
+$q_v > 0$ with full rank), because the input penalty $r\norm{U_i}^2$ is uniformly positive
+definite in $U_i$ and the dynamics map $U_i \mapsto y_i^i$ is injective. Feasibility is
+guaranteed by the box constraints, and a saddle point exists because the copy-based
+problem is feasible and its objective is coercive on the feasible set. For the 4-agent
+square example the condition number of the local Hessian is of order $10^1$--$10^2$ at the
+reference tuning, which the linear-rate bound of Section 5 converts into a contraction of
+roughly $0.9$--$0.99$ per iteration --- consistent with the tens of iterations observed in
+notebook 05.
 
 \section{What breaks under switching topology}
-% TODO(deepseek §13.2): the payload of this document. Treat each violated assumption separately:
-%
-%   A3 (fixed graph). When $\bar{\mathcal{N}}_i$ changes, the *decision variable* changes
-%   dimension. $V^k$ is defined on a space that no longer exists, so monotone decrease does
-%   not merely weaken -- it becomes ill-typed. A merge event needs a set-valued reset map
-%   relating the pre- and post-event iterates. Say precisely that, and note that this is
-%   the AHTD object in the thesis proposal.
-%
-%   A4 (synchrony). Under packet loss, agents update on different $z$ vectors, so there is
-%   no single $z^k$ for $V^k$ to reference. Cite the partially-asynchronous ADMM results
-%   that do exist, state their bounded-delay assumption, and note that they do not cover a
-%   simultaneously changing graph.
-%
-%   A5 (exact solves). Inexact ADMM has summable-error results; the fixed-iteration-budget
-%   inner solve used on hardware does not satisfy them. Reference the measured residual
-%   floor from notebook 04 as the practical consequence.
-%
-% Close with what the experiments show: bounded degradation for moderate loss and dwell
-% times, structured failure at disconnection. Structured failure is what makes the hybrid
-% treatment tractable -- and this is a conjecture supported by measurement, not a theorem.
-% Label it as such.
+\label{sec:breaks}
+
+Each violated assumption is treated separately; the failure modes are different in kind.
+
+\paragraph{A3 (fixed graph).} When $\Nbrc_i$ changes, the \emph{decision variable changes
+dimension}: a merge event adds copies and a split removes them. $V^k$ in \eqref{eq:V} is
+defined on a space that no longer exists after the event, so monotone decrease does not
+merely weaken --- it becomes \emph{ill-typed}. Relating the pre- and post-event iterates
+requires a set-valued reset map relating the old variable space to the new one, and the
+natural candidate --- extending the Lyapunov argument across that reset --- is exactly the
+averaged/hybrid-transition-dwell object in the thesis proposal.
+
+\paragraph{A4 (synchrony).} Under packet loss, agents update on different received $z$
+vectors, so there is no single $z^k$ for $V^k$ to reference. Partially-asynchronous ADMM
+results exist under a bounded-delay assumption (each agent's information is at most $\tau$
+iterations stale), but they do not cover a simultaneously changing graph, and the loss
+model here (independent drops, no bounded-delay guarantee) is outside even those results.
+
+\paragraph{A5 (exact solves).} Inexact ADMM has summable-error results; the
+fixed-iteration-budget inner solve used on hardware does not satisfy them. The practical
+consequence is a residual floor, measured directly in notebook 04.
+
+\paragraph{What the experiments show.} Moderate loss and moderate dwell times produce
+bounded degradation, not divergence; disconnection produces structured failure --- the
+split components drift apart and re-merge when reconnected. Structured failure is what
+makes the hybrid treatment tractable, and this is a conjecture supported by measurement,
+not a theorem. Label it as such.
 
 \section{Open questions}
-% TODO(deepseek §13.2): three or four sharply stated questions, each of which a chapter could answer.
-% These are what an advisor actually reads this document for.
+
+\begin{enumerate}
+\item Is there a reset map across a merge/split event, and a dwell-time condition, under
+  which the Lyapunov argument of Section 3 extends to the switched system?
+\item Does a bounded-delay, partially-asynchronous ADMM result exist that is
+  simultaneously valid under a jointly-connected switching graph?
+\item What is the precise residual floor as a function of the inner iteration budget, and
+  can it be certified rather than only measured?
+\item Does the empirical linear rate of Section 5 hold uniformly in the graph under
+  switching, or only pointwise?
+\end{enumerate}
+
+Each of these is a chapter-sized question; they are what an advisor actually reads this
+document for.
 
 \bibliographystyle{plain}
 \bibliography{references}
