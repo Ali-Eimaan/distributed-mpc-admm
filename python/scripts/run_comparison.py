@@ -86,8 +86,7 @@ def _initial_state(graph, seed):
 def _instance(graph, horizon):
     references = {i: np.zeros((horizon, _model.dim)) for i in range(graph.n_agents)}
     offsets = {
-        i: {j: np.zeros(_model.dim) for j in graph.neighbors(i)}
-        for i in range(graph.n_agents)
+        i: {j: np.zeros(_model.dim) for j in graph.neighbors(i)} for i in range(graph.n_agents)
     }
     return references, offsets
 
@@ -118,6 +117,33 @@ def _best_param(score_fn, params):
     return min(scores, key=scores.get), scores
 
 
+def _sweep_rho(graph, horizon, x0, references, offsets, weights, grid):
+    """Coarse sweep for ADMM's penalty parameter, returning ``(best_rho, scores)``.
+
+    The sweep lives in its own function so the closed-over values are function
+    parameters rather than variables of the caller's ``for`` loop. Inlining the lambda at
+    the call site captures the loop variables by reference (ruff B023), which is harmless
+    only for as long as the lambda is consumed before the next iteration — a property the
+    next person to edit this file should not have to verify.
+    """
+    return _best_param(
+        lambda rho: _run_admm(
+            graph, horizon, x0, references, offsets, rho, weights, SWEEP_MAX_ITER
+        ).iterations,
+        grid,
+    )
+
+
+def _sweep_step(graph, horizon, x0, references, offsets, weights, grid):
+    """Coarse sweep for dual decomposition's step size; see :func:`_sweep_rho`."""
+    return _best_param(
+        lambda step: _run_dd(
+            graph, horizon, x0, references, offsets, step, weights, SWEEP_MAX_ITER
+        ).iterations,
+        grid,
+    )
+
+
 def main() -> None:
     horizon = 10
     configs = [
@@ -138,18 +164,8 @@ def main() -> None:
         rho_grid = [0.5, 1.0, 2.0, 5.0, 10.0, 20.0]
         step_grid = [0.2, 0.5, 0.7, 1.0, 1.5, 2.0]
 
-        best_rho, _ = _best_param(
-            lambda rho: _run_admm(
-                graph, horizon, x0_0, references, offsets, rho, weights, SWEEP_MAX_ITER
-            ).iterations,
-            rho_grid,
-        )
-        best_step, _ = _best_param(
-            lambda step: _run_dd(
-                graph, horizon, x0_0, references, offsets, step, weights, SWEEP_MAX_ITER
-            ).iterations,
-            step_grid,
-        )
+        best_rho, _ = _sweep_rho(graph, horizon, x0_0, references, offsets, weights, rho_grid)
+        best_step, _ = _sweep_step(graph, horizon, x0_0, references, offsets, weights, step_grid)
 
         admm_iters, admm_wall, admm_r = [], [], []
         dd_iters, dd_wall, dd_r = [], [], []
@@ -181,7 +197,9 @@ def main() -> None:
     print("\n=== measured comparison (median over", SEEDS, "seeds) ===")
     print(json.dumps(rows, indent=2))
     print("\nMarkdown table:\n")
-    print("| Problem | ADMM rho | DD step | ADMM iters | DD iters | ADMM wall (ms) | DD wall (ms) |")
+    print(
+        "| Problem | ADMM rho | DD step | ADMM iters | DD iters | ADMM wall (ms) | DD wall (ms) |"
+    )
     print("| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
     for r in rows:
         print(

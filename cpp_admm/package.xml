@@ -24,6 +24,8 @@
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_cmake_gtest</test_depend>
+  <!-- Parses test/data/four_agent_reference.json for the C++/Python parity test (A7). -->
+  <test_depend>nlohmann-json-dev</test_depend>
   <test_depend>ament_cmake_cppcheck</test_depend>
   <test_depend>ament_cmake_uncrustify</test_depend>
 

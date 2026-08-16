@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import cvxpy as cp
 import numpy as np
@@ -185,7 +185,9 @@ class DualDecompositionAgentSolver:
             if j == agent_id:
                 continue
             if j not in self._neighborhood:
-                raise ValueError(f"offset key {j} is not in the closed neighborhood of agent {agent_id}")
+                raise ValueError(
+                    f"offset key {j} is not in the closed neighborhood of agent {agent_id}"
+                )
             d_full = np.tile(np.asarray(offset, dtype=np.float64), t_steps)
             objective += weights.w_formation * cp.sum_squares(y_self - self._y[j] - d_full)
 
@@ -486,6 +488,8 @@ class DualDecomposition:
                 y_norm_sq += float(np.sum(y[i][j] ** 2))
                 z_norm_sq += float(np.sum(z[j] ** 2))
                 nu_norm_sq += float(np.sum(nu[i][j] ** 2))
-        eps_pri = np.sqrt(n_dual) * opts.eps_abs + opts.eps_rel * max(np.sqrt(y_norm_sq), np.sqrt(z_norm_sq))
+        eps_pri = np.sqrt(n_dual) * opts.eps_abs + opts.eps_rel * max(
+            np.sqrt(y_norm_sq), np.sqrt(z_norm_sq)
+        )
         eps_dual = np.sqrt(n_dual) * opts.eps_abs + opts.eps_rel * np.sqrt(nu_norm_sq)
         return float(eps_pri), float(eps_dual)

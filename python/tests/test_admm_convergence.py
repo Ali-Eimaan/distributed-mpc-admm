@@ -23,6 +23,7 @@ import pytest
 
 from distributed_mpc_admm.communication_graph import CommunicationGraph, LossyChannel
 from distributed_mpc_admm.consensus_admm import ADMMOptions, ConsensusADMM
+from distributed_mpc_admm.formation_constraints import FormationSpec
 from distributed_mpc_admm.per_agent_solver import (
     AgentCostWeights,
     AgentLimits,
@@ -217,6 +218,48 @@ def test_matches_centralized_solution(four_agent_setup):
         s.x0, s.graph, s.model, s.horizon, s.weights, s.limits, s.offsets
     )
     assert np.allclose(result.inputs, centralized, atol=1e-3)
+
+
+def test_solve_time_offsets_take_effect(model, horizon):
+    """Offsets supplied to ``solve()`` must couple the agents, not be silently dropped.
+
+    Regression test. The formation cost used to be compiled from the ``CvxpyAgentSolver``
+    constructor argument alone, so ``ConsensusADMM.solve(offsets=...)`` — a documented
+    public parameter — was accepted and ignored. The run then converged cleanly on the
+    *uncoupled* problem: no error, no warning, plausible trajectories, wrong answer.
+
+    Three checks, because any one alone would pass for the wrong reason:
+      1. solve-time offsets match constructor offsets (the two paths agree),
+      2. they differ from the no-formation run (the coupling is actually present),
+      3. a solve-time offset outside the closed neighborhood raises.
+    """
+    graph = CommunicationGraph.cycle(4)
+    weights = AgentCostWeights()
+    limits = AgentLimits()
+    x0 = _random_x0(np.random.default_rng(7), 4, model)
+    references = _zero_references(4, horizon, model.dim)
+    square = FormationSpec.regular_polygon(4, radius=1.0, graph=graph)
+    offsets = {i: square.edge_offsets(i) for i in range(4)}
+    options = ADMMOptions(max_iterations=2000, eps_abs=1e-6, eps_rel=1e-6)
+
+    def run(constructor_offsets, solve_offsets):
+        solvers = _build_solvers(graph, model, horizon, weights, limits, constructor_offsets)
+        admm = ConsensusADMM(graph, solvers, horizon, dim=model.dim, options=options)
+        return admm.solve(x0, references=references, offsets=solve_offsets)
+
+    at_construction = run(offsets, None)
+    at_solve_time = run(None, offsets)
+    uncoupled = run(None, None)
+
+    assert at_construction.converged and at_solve_time.converged
+    assert np.allclose(at_solve_time.inputs, at_construction.inputs, atol=1e-4)
+    # The formation must actually change the answer, or check 1 proves nothing.
+    assert not np.allclose(at_solve_time.inputs, uncoupled.inputs, atol=1e-2)
+
+    bad = {i: dict(offsets[i]) for i in range(4)}
+    bad[0][2] = np.zeros(model.dim)  # agent 2 is not a neighbour of agent 0 on a cycle
+    with pytest.raises(ValueError, match="closed neighborhood"):
+        run(None, bad)
 
 
 def test_residuals_decrease(four_agent_setup):

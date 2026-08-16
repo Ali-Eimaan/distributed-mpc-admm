@@ -41,8 +41,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/M-Ali-Eiman/distributed-mpc-admm"
-Issues = "https://github.com/M-Ali-Eiman/distributed-mpc-admm/issues"
+Homepage = "https://github.com/Ali-Eiman/distributed-mpc-admm"
+Issues = "https://github.com/Ali-Eiman/distributed-mpc-admm/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

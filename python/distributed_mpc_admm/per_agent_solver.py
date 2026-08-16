@@ -420,6 +420,16 @@ class CvxpyAgentSolver(PerAgentSolver):
         self._u_prev_p = cp.Parameter(dim, name="u_prev")
         self._u_prev_active = cp.Parameter(nonneg=True, name="u_prev_active")
 
+        # Formation edges enter as runtime parameters, not as baked-in constants, so that
+        # ``LocalProblemData.offsets`` genuinely takes effect and a morph event
+        # (:func:`formation_constraints.interpolate_formations`) needs no solver rebuild.
+        # This mirrors ``PerAgentQp::setOffsets`` on the C++ side, which likewise updates
+        # only the linear term. ``_wf_p[j]`` is the effective weight for edge ``j`` (zero
+        # when that edge carries no offset) and ``_wd_p[j]`` is ``w * d_ij`` tiled.
+        self._formation_edges = tuple(j for j in self._neighborhood if j != agent_id)
+        self._wf_p = {j: cp.Parameter(nonneg=True, name=f"wf_{j}") for j in self._formation_edges}
+        self._wd_p = {j: cp.Parameter(t_steps * dim, name=f"wd_{j}") for j in self._formation_edges}
+
         y_self = self._y[agent_id]
 
         # --- constraints -------------------------------------------------------
@@ -452,15 +462,22 @@ class CvxpyAgentSolver(PerAgentSolver):
                 + self._u_prev_active * cp.sum_squares(self._U[:dim] - self._u_prev_p)
             )
 
-        for j, offset in self._offsets.items():
-            if j == agent_id:
-                continue
-            if j not in self._neighborhood:
+        for j in self._offsets:
+            if j != agent_id and j not in self._neighborhood:
                 raise ValueError(
                     f"offset key {j} is not in the closed neighborhood of agent {agent_id}"
                 )
-            d_full = np.tile(np.asarray(offset, dtype=np.float64), t_steps)
-            objective += weights.w_formation * cp.sum_squares(y_self - self._y[j] - d_full)
+
+        # DPP-safe expansion of w*||y_self - y_j - d||^2, dropping the w*||d||^2 constant
+        # (it does not change the argmin; ``_compute_local_objective`` adds it back
+        # numerically when the objective value itself is reported):
+        #     w*||y_self - y_j||^2 - 2*<y_self - y_j, w*d>
+        # The quadratic term is parameter * parameter-free expression and the linear term
+        # is affine in the parameter, so both are DPP.
+        for j in self._formation_edges:
+            difference = y_self - self._y[j]
+            objective += self._wf_p[j] * cp.sum_squares(difference)
+            objective -= 2.0 * (difference @ self._wd_p[j])
 
         # Consensus penalty, DPP-safe expansion of (rho/2)||y - z + lam||^2:
         #     (rho/2)||y||^2 - <y, rho*(z - lam)> + const
@@ -503,10 +520,49 @@ class CvxpyAgentSolver(PerAgentSolver):
 
     # ------------------------------------------------------------------ internals
 
+    def _effective_offsets(self, data: LocalProblemData) -> dict[int, NDArray[np.float64]]:
+        """Formation offsets in force for this solve.
+
+        ``data.offsets`` wins when it is non-empty; otherwise the constructor defaults
+        apply. Passing offsets at solve time used to be silently ignored — the formation
+        cost was compiled from the constructor argument alone — which produced a run that
+        converged cleanly on the *uncoupled* problem. Keys outside the closed
+        neighborhood now raise instead of being dropped.
+        """
+        source = data.offsets if data.offsets else self._offsets
+        effective: dict[int, NDArray[np.float64]] = {}
+        for j, offset in source.items():
+            if j == self._agent_id:
+                continue
+            if j not in self._neighborhood:
+                raise ValueError(
+                    f"agent {self._agent_id}: offset key {j} is not in its closed neighborhood "
+                    f"{self._neighborhood}"
+                )
+            value = np.asarray(offset, dtype=np.float64).reshape(-1)
+            if value.size != self._model.dim:
+                raise ValueError(
+                    f"agent {self._agent_id}: offset[{j}] must have {self._model.dim} "
+                    f"components, got {value.size}"
+                )
+            effective[j] = value
+        return effective
+
     def _assign_parameters(self, data: LocalProblemData) -> None:
         """Copy ``data`` into the CVXPY parameters. Raise if a neighbor key is missing."""
         data.validate()
         self._x0_p.value = np.asarray(data.x0, dtype=np.float64)
+
+        offsets = self._effective_offsets(data)
+        weight = self._weights.w_formation
+        for j in self._formation_edges:
+            offset = offsets.get(j)
+            if offset is None:
+                self._wf_p[j].value = 0.0
+                self._wd_p[j].value = np.zeros(self._horizon * self._model.dim)
+            else:
+                self._wf_p[j].value = weight
+                self._wd_p[j].value = weight * np.tile(offset, self._horizon)
 
         if data.reference is None:
             if self._weights.q_position > 0 or self._weights.p_terminal > 0:
@@ -588,11 +644,8 @@ class CvxpyAgentSolver(PerAgentSolver):
             seq = np.vstack([previous[None, :], inputs])
             value += weights.r_rate * float(np.sum((seq[1:] - seq[:-1]) ** 2))
 
-        for j, offset in self._offsets.items():
-            if j == self._agent_id:
-                continue
-            d_full = np.asarray(offset, dtype=np.float64)
-            value += weights.w_formation * float(np.sum((y_self - copies[j] - d_full) ** 2))
+        for j, offset in self._effective_offsets(data).items():
+            value += weights.w_formation * float(np.sum((y_self - copies[j] - offset) ** 2))
 
         return value
 

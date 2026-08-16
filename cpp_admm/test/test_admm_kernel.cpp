@@ -45,6 +45,17 @@ std::atomic<long> g_alloc_count{0};
 std::atomic<bool> g_count_allocs{false};
 }  // namespace
 
+// Replacing the global allocator is exactly what this test is for, but GCC's
+// interprocedural analysis pairs the *builtin* operator new (which it still sees inlined
+// inside header-only code such as nlohmann/json) with the replacement operator delete
+// below and reports -Wmismatched-new-delete. Every replacement here is malloc/free
+// throughout, so the pairing is consistent; the diagnostic is a false positive of the
+// inlining, not a real mismatch. Scoped to these definitions only.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmismatched-new-delete"
+#endif
+
 void * operator new(std::size_t sz)
 {
   if (g_count_allocs.load(std::memory_order_relaxed)) {
@@ -141,6 +152,10 @@ void operator delete(void * p, std::size_t, std::align_val_t) noexcept {std::fre
 void operator delete[](void * p, std::size_t, std::align_val_t) noexcept {std::free(p);}
 void operator delete(void * p, std::align_val_t, const std::nothrow_t &) noexcept {std::free(p);}
 void operator delete[](void * p, std::align_val_t, const std::nothrow_t &) noexcept {std::free(p);}
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 namespace cpp_admm
 {

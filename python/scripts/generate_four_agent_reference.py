@@ -103,18 +103,16 @@ admm = ConsensusADMM(graph, solvers, HORIZON, dim=DIM, options=options)
 admm._z = {j: np.zeros((HORIZON, DIM)) for j in range(N_AGENTS)}
 admm._z_view = {i: dict(admm._z) for i in range(N_AGENTS)}
 admm._y = {
-    i: {j: np.zeros((HORIZON, DIM)) for j in graph.closed_neighborhood(i)}
-    for i in range(N_AGENTS)
+    i: {j: np.zeros((HORIZON, DIM)) for j in graph.closed_neighborhood(i)} for i in range(N_AGENTS)
 }
 admm._lam = {
-    i: {j: np.zeros((HORIZON, DIM)) for j in graph.closed_neighborhood(i)}
-    for i in range(N_AGENTS)
+    i: {j: np.zeros((HORIZON, DIM)) for j in graph.closed_neighborhood(i)} for i in range(N_AGENTS)
 }
 admm._z_last_known = {i: {} for i in range(N_AGENTS)}
 
 rho = options.rho
 iterates: list[dict] = []
-last_U: list[list[float]] | None = None
+last_inputs: list[list[float]] | None = None
 converged = False
 
 for iteration in range(options.max_iterations):
@@ -149,7 +147,7 @@ for iteration in range(options.max_iterations):
 
     # The last x-update's inputs are exactly what ConsensusADMM.solve() returns as
     # `inputs` (stack(latest_solutions[i].inputs)); record them for the optimum test.
-    last_U = [snapshot["agents"][i]["U"] for i in range(N_AGENTS)]
+    last_inputs = [snapshot["agents"][i]["U"] for i in range(N_AGENTS)]
 
     if iteration < N_ITERATES:
         iterates.append(snapshot)
@@ -169,7 +167,7 @@ for iteration in range(options.max_iterations):
 
 # `final_inputs` is the U from the final x-update (ConsensusADMM.solve()'s `inputs`),
 # NOT a re-solve at the final (z, lam) -- the two differ by one dual update.
-final_inputs = last_U
+final_inputs = last_inputs
 
 # Record the final consensus/dual views as well, for fixed-point parity checks.
 final_z = {i: admm._z_view[i][i].ravel().tolist() for i in range(N_AGENTS)}
@@ -204,7 +202,9 @@ payload = {
     "iterations_run": iteration + 1,
 }
 
-out = Path(__file__).resolve().parents[2] / "cpp_admm" / "test" / "data" / "four_agent_reference.json"
+out = (
+    Path(__file__).resolve().parents[2] / "cpp_admm" / "test" / "data" / "four_agent_reference.json"
+)
 out.parent.mkdir(parents=True, exist_ok=True)
 with out.open("w", encoding="utf-8") as fh:
     json.dump(payload, fh, indent=2)

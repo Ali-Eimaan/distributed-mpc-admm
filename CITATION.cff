@@ -1,0 +1,70 @@
+cff-version: 1.2.0
+title: "distributed-mpc-admm: Distributed MPC via consensus ADMM"
+message: "If you use this software, please cite it using these metadata."
+type: software
+authors:
+  - family-names: Eiman
+    given-names: "M. Ali"
+    email: ali.eimaan@icloud.com
+repository-code: "https://github.com/Ali-Eiman/distributed-mpc-admm"
+abstract: >-
+  A distributed model-predictive controller for double-integrator agents in 2D,
+  coupled only through formation costs and solved by general-form consensus ADMM
+  over a communication graph. Ships a readable Python reference and a real-time
+  C++/ROS 2 kernel (OSQP, one process per agent) that are pinned to each other by
+  an iterate-level parity test, together with the derivations and the experiments
+  that measure where the standard convergence guarantee stops applying.
+keywords:
+  - model predictive control
+  - distributed optimization
+  - ADMM
+  - consensus
+  - multi-agent systems
+  - formation control
+  - ROS 2
+license: BSD-3-Clause
+version: 0.1.0
+date-released: "2026-08-16"
+references:
+  - type: article
+    authors:
+      - family-names: Boyd
+        given-names: Stephen
+      - family-names: Parikh
+        given-names: Neal
+      - family-names: Chu
+        given-names: Eric
+      - family-names: Peleato
+        given-names: Borja
+      - family-names: Eckstein
+        given-names: Jonathan
+    title: >-
+      Distributed Optimization and Statistical Learning via the Alternating
+      Direction Method of Multipliers
+    journal: "Foundations and Trends in Machine Learning"
+    volume: 3
+    issue: 1
+    start: 1
+    end: 122
+    year: 2011
+    doi: 10.1561/2200000016
+  - type: article
+    authors:
+      - family-names: Stellato
+        given-names: Bartolomeo
+      - family-names: Banjac
+        given-names: Goran
+      - family-names: Goulart
+        given-names: Paul
+      - family-names: Bemporad
+        given-names: Alberto
+      - family-names: Boyd
+        given-names: Stephen
+    title: "OSQP: An Operator Splitting Solver for Quadratic Programs"
+    journal: "Mathematical Programming Computation"
+    volume: 12
+    issue: 4
+    start: 637
+    end: 672
+    year: 2020
+    doi: 10.1007/s12532-020-00179-2

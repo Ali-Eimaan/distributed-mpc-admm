@@ -23,9 +23,21 @@ find_package(osqp REQUIRED)
 
 # ZeroMQ is optional: the ROS transport is the default and ZeroMqTransport is only needed
 # for the standalone benchmark. Guard it so a machine without cppzmq can still build.
+#
+# Two separate things are required and they ship in different packages: the C library
+# (libzmq3-dev) and the header-only C++ binding cppzmq (cppzmq-dev), which is what
+# provides <zmq.hpp>. Testing only for libzmq defines CPP_ADMM_WITH_ZMQ on a machine that
+# has the library but not the binding, and the build then fails on a missing zmq.hpp.
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
   pkg_check_modules(ZMQ QUIET libzmq)
+endif()
+find_path(CPPZMQ_INCLUDE_DIR zmq.hpp HINTS ${ZMQ_INCLUDE_DIRS})
+
+if(ZMQ_FOUND AND CPPZMQ_INCLUDE_DIR)
+  set(CPP_ADMM_ZMQ_AVAILABLE TRUE)
+else()
+  set(CPP_ADMM_ZMQ_AVAILABLE FALSE)
 endif()
 
 # ---------------------------------------------------------------------------- library
@@ -40,12 +52,15 @@ target_include_directories(admm_kernel PUBLIC
 )
 target_link_libraries(admm_kernel PUBLIC Eigen3::Eigen osqp::osqp)
 
-if(ZMQ_FOUND)
+if(CPP_ADMM_ZMQ_AVAILABLE)
   target_compile_definitions(admm_kernel PRIVATE CPP_ADMM_WITH_ZMQ=1)
-  target_include_directories(admm_kernel PRIVATE ${ZMQ_INCLUDE_DIRS})
+  target_include_directories(admm_kernel PRIVATE ${ZMQ_INCLUDE_DIRS} ${CPPZMQ_INCLUDE_DIR})
   target_link_libraries(admm_kernel PRIVATE ${ZMQ_LIBRARIES})
+  message(STATUS "cppzmq found: ZeroMqTransport enabled")
 else()
-  message(STATUS "libzmq not found: ZeroMqTransport will throw at construction")
+  message(STATUS
+    "cppzmq (<zmq.hpp>) not found: building without ZeroMqTransport; "
+    "constructing one will throw. Install cppzmq-dev to enable it.")
 endif()
 
 # ------------------------------------------------------------------------------- node
@@ -69,12 +84,22 @@ if(BUILD_TESTING)
     target_link_libraries(test_admm_kernel admm_kernel)
     target_compile_definitions(test_admm_kernel PRIVATE
       CPP_ADMM_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/data")
+    # The parity fixture is JSON, so the gtest needs nlohmann/json.hpp. This is a hard
+    # requirement, not an optional extra: A7 (C++/Python parity) is a release gate, and a
+    # silently missing header would drop the whole test target rather than fail visibly.
     find_package(nlohmann_json QUIET)
     if(nlohmann_json_FOUND)
       target_link_libraries(test_admm_kernel nlohmann_json::nlohmann_json)
     else()
-      # Header-only fallback: nlohmann/json.hpp is on the system include path.
-      message(STATUS "nlohmann_json CMake package not found; relying on system header")
+      find_path(NLOHMANN_JSON_INCLUDE_DIR nlohmann/json.hpp)
+      if(NOT NLOHMANN_JSON_INCLUDE_DIR)
+        message(FATAL_ERROR
+          "nlohmann/json.hpp not found. It is required to build test_admm_kernel, which "
+          "carries the C++/Python parity test (acceptance criterion A7). Install it with "
+          "`apt-get install nlohmann-json3-dev`, or configure with -DBUILD_TESTING=OFF to "
+          "build the library alone.")
+      endif()
+      target_include_directories(test_admm_kernel PRIVATE ${NLOHMANN_JSON_INCLUDE_DIR})
     endif()
   endif()
 endif()

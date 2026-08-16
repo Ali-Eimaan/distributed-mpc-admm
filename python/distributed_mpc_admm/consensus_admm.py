@@ -592,9 +592,10 @@ class ConsensusADMM:
         for i in range(n_agents):
             solver = self._solvers[i]
             neighborhood = tuple(graph.closed_neighborhood(i))
-            agent_offsets = (
-                offsets.get(i) if offsets is not None else getattr(solver, "_offsets", {})
-            )
+            # An empty mapping means "use the solver's own defaults" — the solver resolves
+            # that in :meth:`CvxpyAgentSolver._effective_offsets`, so there is no need to
+            # reach into its private state from here.
+            agent_offsets = offsets.get(i) if offsets is not None else None
             data = LocalProblemData(
                 agent_id=i,
                 horizon=self._horizon,
@@ -1077,14 +1078,29 @@ class DistributedMPC:
                 self._dropped_edges = self._missing_formation_edges(graph)
 
         references = self._references_at(k)
-        offsets = {i: self._formation.edge_offsets(i) for i in range(graph.n_agents)}
+        # Filter by the *active* communication graph, exactly as `_rebuild_solvers` does.
+        # A formation edge whose communication link has gone takes its cost term with it
+        # (recorded in `self._dropped_edges` and surfaced in the log metadata); an agent
+        # cannot evaluate a term against a neighbour it can no longer hear from.
+        offsets = {
+            i: {
+                j: d
+                for j, d in self._formation.edge_offsets(i).items()
+                if j in graph.closed_neighborhood(i)
+            }
+            for i in range(graph.n_agents)
+        }
         result = self._admm.solve(
             x0=np.asarray(x, dtype=np.float64),
             references=references,
             offsets=offsets,
-            initial_guess=self._last_guess,
+            initial_guess=self._last_guess if self._admm_options.warm_start else None,
         )
-        self._last_guess = result.shifted()
+        # Keep the shifted iterate only when warm starting is enabled. Storing it
+        # unconditionally and then passing it every step made ``ADMMOptions.warm_start``
+        # inert: a "cold" closed-loop run produced iteration counts identical to the warm
+        # one, so any cold-vs-warm comparison built on it measured nothing.
+        self._last_guess = result.shifted() if self._admm_options.warm_start else None
         return result.first_inputs(), result
 
     def run(self, x0: NDArray[np.float64], n_steps: int | None = None) -> SimulationLog:

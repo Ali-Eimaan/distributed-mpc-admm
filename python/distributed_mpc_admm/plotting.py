@@ -602,6 +602,7 @@ def animate_formation(
     figsize: tuple[float, float] = (7.0, 7.0),
     title: str | None = None,
     events: Mapping[int, str] | None = None,
+    event_hold: int = 12,
 ) -> Any:
     """Build a ``matplotlib.animation.FuncAnimation`` of the closed-loop run.
 
@@ -622,12 +623,26 @@ def animate_formation(
     fig, ax = plt.subplots(figsize=figsize)
     positions = log.positions
     n_agents = positions.shape[1]
+    n_steps = len(log.admm_iterations)
 
     if title is None:
         title = "Formation control"
     fig.suptitle(title)
 
-    (path_lines,) = ax.plot([], [], alpha=0.35, linewidth=0.8, color="grey")
+    # One Line2D per agent. A single Line2D handed 2-D data flattens it and draws one
+    # polyline through every agent's position in turn, which renders as a spurious polygon
+    # sweeping the workspace rather than as per-agent trails.
+    trail_lines = [
+        ax.plot(
+            [],
+            [],
+            alpha=0.35,
+            linewidth=0.9,
+            color=AGENT_COLORS[i % len(AGENT_COLORS)],
+            zorder=2,
+        )[0]
+        for i in range(n_agents)
+    ]
     scatter = ax.scatter(
         positions[0, :, 0],
         positions[0, :, 1],
@@ -653,17 +668,24 @@ def animate_formation(
         color="tab:red",
     )
 
-    def _draw_edges(graph: CommunicationGraph) -> None:
+    def _draw_edges(graph: CommunicationGraph, frame: int) -> None:
+        """Redraw the communication edges at the positions held at ``frame``.
+
+        Drawing them at ``positions[0]`` instead pins the whole graph to the initial
+        configuration: the overlay then sits motionless in the corner of the plot while
+        the agents move away from it, which reads as a stray polygon rather than as a
+        topology.
+        """
         for line in edge_lines:
             line.remove()
         edge_lines.clear()
         for i, j in graph.edges:
             (line,) = ax.plot(
-                [positions[0, i, 0], positions[0, j, 0]],
-                [positions[0, i, 1], positions[0, j, 1]],
-                color="grey",
-                linewidth=0.6,
-                alpha=0.5,
+                [positions[frame, i, 0], positions[frame, j, 0]],
+                [positions[frame, i, 1], positions[frame, j, 1]],
+                color="0.35",
+                linewidth=1.1,
+                alpha=0.65,
                 zorder=1,
             )
             edge_lines.append(line)
@@ -674,33 +696,49 @@ def animate_formation(
         scatter.set_offsets(np.column_stack([x, y]))
 
         lo = max(0, frame - trail_length)
-        path_lines.set_data(positions[lo : frame + 1, :, 0].T, positions[lo : frame + 1, :, 1].T)
+        for i, line in enumerate(trail_lines):
+            line.set_data(positions[lo : frame + 1, i, 0], positions[lo : frame + 1, i, 1])
 
-        if show_predictions and frame < len(log.predictions):
-            pred = log.predictions[frame]
+        # `states` carries K+1 rows (it includes x0) while every per-step array carries K,
+        # so the final frame has no control step of its own; clamp rather than drop the
+        # readout, which would otherwise blank the info box on the last frame.
+        step = min(frame, n_steps - 1) if n_steps else 0
+
+        if show_predictions and n_steps:
+            pred = log.predictions[step]
             for i, line in enumerate(prediction_lines):
                 line.set_data(pred[i, :, 0], pred[i, :, 1])
         else:
             for line in prediction_lines:
                 line.set_data([], [])
 
-        if show_graph and frame < len(log.graphs):
-            _draw_edges(log.graphs[frame])
+        if show_graph and log.graphs:
+            _draw_edges(log.graphs[min(step, len(log.graphs) - 1)], frame)
 
-        if frame < len(log.admm_iterations):
+        if n_steps:
             info = (
-                f"t = {log.time[frame]:.1f} s\n"
-                f"iterations = {log.admm_iterations[frame]}\n"
-                f"formation error = {log.formation_error[frame]:.3f} m"
+                f"t = {log.time[step]:.1f} s\n"
+                f"iterations = {log.admm_iterations[step]}\n"
+                f"formation error = {log.formation_error[step]:.3f} m"
             )
         else:
-            info = f"t = {frame * (log.time[1] - log.time[0]) if len(log.time) > 1 else 0:.1f} s"
+            info = f"t = {frame:d}"
         info_text.set_text(info)
-        event_text.set_text(events.get(frame, "") if events else "")
+
+        # Hold each label for `event_hold` frames. A one-frame stamp on a 20 fps GIF is
+        # 50 ms — present in the file, invisible to the viewer, and the switching GIF's
+        # whole job is to make those instants legible.
+        label = ""
+        if events:
+            for start, text in events.items():
+                if start <= frame < start + event_hold:
+                    label = text
+                    break
+        event_text.set_text(label)
 
         artists: list[Any] = [
             scatter,
-            path_lines,
+            *trail_lines,
             info_text,
             event_text,
             *prediction_lines,
@@ -708,9 +746,22 @@ def animate_formation(
         ]
         return artists
 
-    ax.set_xlim(positions[:, :, 0].min() - 1.0, positions[:, :, 0].max() + 1.0)
-    ax.set_ylim(positions[:, :, 1].min() - 1.0, positions[:, :, 1].max() + 1.0)
-    ax.set_aspect("equal", adjustable="datalim")
+    # Square view box around the data, then an equal aspect achieved by adjusting the *box*.
+    #
+    # `set_aspect("equal", adjustable="datalim")` lets matplotlib rewrite the limits set
+    # just above in order to satisfy the aspect ratio -- it says so ("Ignoring fixed x
+    # limits to fulfill fixed data aspect with adjustable data limits") and then shrinks
+    # whichever range it likes. On a wide formation such as the 2x4 grid it cropped the
+    # leftmost column straight out of frame, so the GIF showed six of eight agents.
+    # Equalising the two ranges here first means there is nothing left to reconcile.
+    pad = 1.0
+    x_lo, x_hi = positions[:, :, 0].min() - pad, positions[:, :, 0].max() + pad
+    y_lo, y_hi = positions[:, :, 1].min() - pad, positions[:, :, 1].max() + pad
+    x_mid, y_mid = 0.5 * (x_lo + x_hi), 0.5 * (y_lo + y_hi)
+    half = 0.5 * max(x_hi - x_lo, y_hi - y_lo)
+    ax.set_xlim(x_mid - half, x_mid + half)
+    ax.set_ylim(y_mid - half, y_mid + half)
+    ax.set_aspect("equal", adjustable="box")
     ax.set_xlabel("x [m]")
     ax.set_ylabel("y [m]")
 
@@ -718,18 +769,43 @@ def animate_formation(
 
 
 def save_animation(
-    anim: Any, path: str, fps: int = 20, dpi: int = 110, writer: str | None = None
+    anim: Any,
+    path: str,
+    fps: int = 20,
+    dpi: int = 110,
+    writer: str | None = None,
+    facecolor: Any = None,
 ) -> None:
     """Write a GIF (Pillow) or MP4 (ffmpeg), inferred from the extension.
 
     Keep GIFs under about 5 MB or GitHub will not autoplay them in the README: cap the
     figure at ~7 inches, use ``dpi<=110``, and subsample frames rather than lowering fps
     below ~15 (a choppy GIF reads as a broken demo).
+
+    Frames are always written **opaque**, overriding the ambient style. ``savefig.transparent``
+    is right for a static PNG and wrong for an animation: a GIF carries one bit of alpha, so
+    Pillow composites each transparent frame onto the one before it, every frame accumulates,
+    and the result is the whole run smeared into a single unreadable image.
+    ``apply_style("readme")`` sets it, so ``make_readme_media`` hits this directly.
+
+    Pass ``facecolor`` to choose the backdrop; the default resolves the figure's own colour
+    and falls back to white when it is fully transparent.
+
+    ``savefig.bbox = "tight"`` — also set by that style — needs no handling here:
+    matplotlib discards it for animations itself, since a per-frame bounding box would let
+    the frame size vary.
     """
+    fig = getattr(anim, "_fig", None)
+    resolved = facecolor
+    if resolved is None:
+        current = fig.get_facecolor() if fig is not None else (1.0, 1.0, 1.0, 1.0)
+        resolved = "white" if len(current) == 4 and current[3] == 0.0 else current
+    savefig_kwargs = {"transparent": False, "facecolor": resolved}
+
     if path.endswith(".gif"):
-        anim.save(path, writer="pillow", fps=fps, dpi=dpi)
+        anim.save(path, writer="pillow", fps=fps, dpi=dpi, savefig_kwargs=savefig_kwargs)
     elif path.endswith(".mp4"):
-        anim.save(path, writer=writer or "ffmpeg", fps=fps, dpi=dpi)
+        anim.save(path, writer=writer or "ffmpeg", fps=fps, dpi=dpi, savefig_kwargs=savefig_kwargs)
     else:
         raise ValueError("path must end in .gif or .mp4")
 
@@ -764,8 +840,8 @@ def make_readme_media(
 ) -> None:
     """Regenerate every file in ``media/`` from two logs.
 
-    Called by ``python -m distributed_mpc_admm.plotting`` and by the release checklist, so
-    the committed media can always be reproduced from committed code.
+    Called from the notebooks listed in ``media/README.md`` and by the release checklist,
+    so the committed media can always be reproduced from committed code.
 
     ``switch_events`` annotates the switching GIF's split/merge instants; when omitted it
     is derived from the switching log's graph sequence.
@@ -800,6 +876,12 @@ def make_readme_media(
 
 
 if __name__ == "__main__":
-    # Convenience entry point: regenerate the README media from committed logs.
-    # Usage: python -m distributed_mpc_admm.plotting
-    raise SystemExit("make_readme_media requires two SimulationLog instances; call it directly.")
+    raise SystemExit(
+        "This module is a library, not a command.\n"
+        "make_readme_media() needs two SimulationLog instances, so the media are produced "
+        "by the notebooks that compute those logs:\n"
+        "  media/4_agent_formation.gif  <- python/notebooks/03_formation_control.ipynb\n"
+        "  media/topology_switch.gif    <- python/notebooks/04_switching_topology.ipynb\n"
+        "  media/convergence_curves.png <- python/notebooks/05_convergence_analysis.ipynb\n"
+        "See media/README.md."
+    )

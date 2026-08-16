@@ -237,8 +237,8 @@ struct PerAgentQp::Impl
   QpSolution solution;
   bool ready{false};
 
-  Impl(double dt, int dim)
-  : model(dt, dim) {}
+  Impl(double sample_time, int spatial_dim)
+  : model(sample_time, spatial_dim) {}
 };
 
 PerAgentQp::PerAgentQp(const AgentConfig & config, QpSettings settings)
