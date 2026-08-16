@@ -98,15 +98,26 @@ jobs:
         working-directory: python
         run: pip install -e ".[dev]"
 
-      # nbmake runs every notebook end to end. If 04/05 exceed the runner budget, add an
-      # NB_CI=1 env check inside those notebooks that shrinks the sweep sizes -- do NOT
-      # drop them from CI. A notebook not executed in CI is one that is broken and nobody knows.
+      # nbmake runs every notebook end to end. NB_CI=1 is what activates the reduced
+      # sweep sizes the notebooks already implement -- without it they run the full
+      # research protocol (30 seeds, 13 rho values, MAX_ITER=3000) and notebook 05's rho
+      # sweep alone takes ~90 minutes, blowing the per-cell timeout. The gates existed;
+      # the variable that arms them did not.
+      #
+      # This is a smoke test: it proves the notebooks still execute, not that the
+      # committed numbers reproduce. Those come from full local runs.
       - name: Execute notebooks
         working-directory: python
+        env:
+          NB_CI: "1"
         run: pytest --nbmake --nbmake-timeout=900 notebooks/
 
-      # The three analysis/ notebooks read cached .npz logs and are fast; run them too.
+      # The three analysis/ notebooks read cached .npz logs and are fast, but
+      # topology_robustness runs its own Monte Carlo (200 trials at full protocol), so it
+      # needs the same gate.
       - name: Execute analysis notebooks
+        env:
+          NB_CI: "1"
         run: pytest --nbmake --nbmake-timeout=600 analysis/
 
   # ---------------------------------------------------------------- C++ / ROS 2
@@ -185,6 +196,12 @@ jobs:
       # latexmk (multiple passes + bibtex, -halt-on-error via continue_on_error: false) over
       # each derivation. Failing this job on a LaTeX error is correct -- a repo whose headline
       # deliverable is a set of derivations must not ship documents that do not compile.
+      #
+      # work_in_root_file_dir is required, not cosmetic: latexmk otherwise runs from the
+      # repository root, and TeX resolves \input{preamble} and \bibliography{references}
+      # against the *working directory* rather than the including file's directory. Both
+      # live beside the .tex files, so without this every document dies on
+      # "File `preamble.tex' not found".
       - name: latexmk
         uses: xu-cheng/latex-action@v3
         with:
@@ -192,6 +209,7 @@ jobs:
             docs/derivations/augmented_lagrangian.tex
             docs/derivations/consensus_admm_derivation.tex
             docs/derivations/convergence_proof.tex
+          work_in_root_file_dir: true
           latexmk_use_lualatex: false
           continue_on_error: false
 

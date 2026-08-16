@@ -36,6 +36,15 @@
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\Nbr}{\mathcal{N}}                   % open neighborhood (subscript written as \Nbr_i)
 \newcommand{\Nbrc}{\bar{\mathcal{N}}}            % closed neighborhood (subscript written as \Nbrc_i)
+% Iterate-indexed forms. The base macros below already emit a superscript, so writing
+% \zcon{j}^k expands to z^{j}^k -- a double superscript, which is a hard TeX error and not
+% a warning. The iteration index has to join the existing superscript group, giving
+% z^{j,k}. Use these whenever an ADMM iteration index is attached.
+\newcommand{\ycopyk}[3]{y_{#1}^{#2,#3}}         % local copy at iteration
+\newcommand{\zconk}[2]{z^{#1,#2}}               % consensus variable at iteration
+\newcommand{\dualk}[3]{\lambda_{#1}^{#2,#3}}    % scaled dual at iteration
+\newcommand{\udualk}[3]{\nu_{#1}^{#2,#3}}       % unscaled dual at iteration
+
 \newcommand{\ycopy}[2]{y_{#1}^{#2}}             % local copy
 \newcommand{\zcon}[1]{z^{#1}}                   % consensus variable
 \newcommand{\dual}[2]{\lambda_{#1}^{#2}}        % scaled dual (code `lam`)

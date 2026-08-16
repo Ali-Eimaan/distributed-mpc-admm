@@ -186,6 +186,11 @@ step-size-sensitive), and as $\rho \to \infty$ it limits to the penalty method (
 progress, ill-conditioned dual). Finite $\rho$ trades the two, which is why the
 residual-balancing heuristic of the main document chooses $\rho$ online.
 
+% The prose attributes sources by name rather than with \cite, so bibtex would otherwise
+% produce an empty thebibliography and the PDF would render a bare "References" heading
+% with nothing under it. \nocite{*} lists every verified entry of references.bib as the
+% reading list these documents actually draw on.
+\nocite{*}
 \bibliographystyle{plain}
 \bibliography{references}
 \end{document}

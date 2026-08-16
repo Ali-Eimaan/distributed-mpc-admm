@@ -34,3 +34,18 @@ Thumbs.db
 # Generated media (checked-in release GIFs are force-added; see media/README.md)
 media/*.mp4
 media/scratch/
+
+# LaTeX build artefacts. The derivations are compiled by CI (which uploads the PDFs as an
+# artifact) and by anyone running latexmk locally; none of the output belongs in the tree.
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.synctex.gz
+*.toc
+docs/derivations/*.log
+docs/derivations/*.pdf

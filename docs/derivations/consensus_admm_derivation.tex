@@ -125,7 +125,7 @@ alternates three minimisations, each holding the other two blocks fixed.
 Both $f_i$ and the penalty separate across $i$, so this is $N$ independent QPs:
 \begin{equation}
 (U_i^{k+1}, y_i^{k+1}) = \argmin_{U_i, y_i}\ \Big[
-  f_i(y_i) + \tfrac{\rho}{2}\sum_{j\in\Nbrc_i}\norm{\ycopy{i}{j} - \zcon{j}^k + \dual{i}{j}^k}^2
+  f_i(y_i) + \tfrac{\rho}{2}\sum_{j\in\Nbrc_i}\norm{\ycopy{i}{j} - \zconk{j}{k} + \dualk{i}{j}{k}}^2
 \Big]
 \quad\text{s.t.}\quad \ycopy{i}{i} = \Phi_p x_i(0) + \Gamma_p U_i,\ \text{boxes}.
 \label{eq:xupdate}
@@ -149,9 +149,9 @@ the average of $\ycopy{i}{j} + \dual{i}{j}$ over the contributors $C(j)$ of $j$.
 undirected graph $C(j) = \Nbrc_j$, so \textbf{the $z$-update for $j$ requires only messages
 from $j$'s neighbours}. This single sentence is what makes the iteration distributed.
 
-\paragraph{Dual update.} $\udual{i}{j}^{k+1} = \udual{i}{j}^k + \rho(\ycopy{i}{j}^{k+1} -
-\zcon{j}^{k+1})$, or in scaled form
-$\dual{i}{j}^{k+1} = \dual{i}{j}^k + (\ycopy{i}{j}^{k+1} - \zcon{j}^{k+1})$.
+\paragraph{Dual update.} $\udualk{i}{j}{k+1} = \udualk{i}{j}{k} + \rho(\ycopyk{i}{j}{k+1} -
+\zconk{j}{k+1})$, or in scaled form
+$\dualk{i}{j}{k+1} = \dualk{i}{j}{k} + (\ycopyk{i}{j}{k+1} - \zconk{j}{k+1})$.
 
 \section{Scaled form and the final algorithm}
 
@@ -196,7 +196,7 @@ The primal and dual residuals are (Section 6 of the notation reference)
 \begin{equation}
 r^k = \Big(\sum_i\sum_{j\in\Nbrc_i}\norm{\ycopy{i}{j} - \zcon{j}}^2\Big)^{1/2},
 \qquad
-s^k = \rho\Big(\sum_j \norm{\zcon{j}^k - \zcon{j}^{k-1}}^2\Big)^{1/2},
+s^k = \rho\Big(\sum_j \norm{\zconk{j}{k} - \zconk{j}{k-1}}^2\Big)^{1/2},
 \end{equation}
 and stopping uses
 \begin{equation}
@@ -288,6 +288,9 @@ feasibility condition $(y_i - a_i) + \lambda_i = 0$ at the optimum. The MPC laye
 adds the affine map $y = \Phi_p x_0 + \Gamma_p U$ to the x-update; the z-update and dual
 update above are unchanged.
 
+% See augmented_lagrangian.tex: sources are attributed in prose, so \nocite{*} is what
+% keeps the References section from rendering empty.
+\nocite{*}
 \bibliographystyle{plain}
 \bibliography{references}
 \end{document}
