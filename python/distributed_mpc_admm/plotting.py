@@ -62,9 +62,13 @@ def apply_style(context: str = "paper") -> None:
     """Set rcParams for a consistent look.
 
     ``context`` is ``"paper"`` (serif, small, for the LaTeX docs), ``"notebook"``
-    (default sizes) or ``"readme"`` (larger fonts, transparent background so the figures
-    read on both GitHub light and dark themes — this matters, dark-mode readers see a
-    black box otherwise).
+    (default sizes) or ``"readme"`` (larger fonts, opaque white background).
+
+    The README style is deliberately **opaque**. A transparent PNG lets GitHub's page
+    background through, so on the dark theme the figure's black axes, ticks and labels
+    render dark-on-dark and become unreadable — the opposite of what transparency is
+    usually reached for. An opaque white canvas is self-contained and legible under both
+    themes, which is what the sibling repositories ship.
     """
     import matplotlib as mpl
 
@@ -104,9 +108,11 @@ def apply_style(context: str = "paper") -> None:
                 "figure.dpi": 100,
                 "savefig.dpi": 110,
                 "savefig.bbox": "tight",
-                "savefig.transparent": True,
-                "figure.facecolor": "none",
-                "axes.facecolor": "none",
+                "savefig.transparent": False,
+                "figure.facecolor": "white",
+                "axes.facecolor": "white",
+                "savefig.facecolor": "white",
+                "savefig.edgecolor": "white",
             }
         )
     else:
@@ -782,11 +788,12 @@ def save_animation(
     figure at ~7 inches, use ``dpi<=110``, and subsample frames rather than lowering fps
     below ~15 (a choppy GIF reads as a broken demo).
 
-    Frames are always written **opaque**, overriding the ambient style. ``savefig.transparent``
-    is right for a static PNG and wrong for an animation: a GIF carries one bit of alpha, so
-    Pillow composites each transparent frame onto the one before it, every frame accumulates,
-    and the result is the whole run smeared into a single unreadable image.
-    ``apply_style("readme")`` sets it, so ``make_readme_media`` hits this directly.
+    Frames are always written **opaque**, whatever the ambient style says. A GIF carries one
+    bit of alpha, so Pillow composites each transparent frame onto the one before it: every
+    frame accumulates and the result is the whole run smeared into a single unreadable image.
+    ``apply_style("readme")`` no longer sets ``savefig.transparent``, but this guard stays —
+    the failure is silent and produces a plausible-looking file, so it is not worth leaving
+    to a style setting.
 
     Pass ``facecolor`` to choose the backdrop; the default resolves the figure's own colour
     and falls back to white when it is fully transparent.

@@ -28,8 +28,10 @@ Constraints honoured by the generator:
   `adjustable="datalim"` lets matplotlib rewrite the limits to satisfy the aspect ratio, and
   on a wide formation such as the 2×4 grid it cropped the leftmost column out of frame — the
   GIF showed six of eight agents.
-- Static figures use `plotting.apply_style("readme")` — transparent background and larger
-  fonts — so they stay legible on GitHub's dark mode.
+- Static figures use `plotting.apply_style("readme")` — larger fonts and an **opaque white**
+  canvas. Transparency is the wrong choice here: GitHub's page background shows through, so
+  on the dark theme the black axes and labels render dark-on-dark. An opaque figure is
+  self-contained and legible under both themes.
 - **Animations are forced opaque** by `plotting.save_animation`, overriding that style. A GIF
   carries one bit of alpha, so transparent frames get composited onto their predecessors and
   the whole run accumulates into a single unreadable smear.
