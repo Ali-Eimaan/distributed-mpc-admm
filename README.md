@@ -2,7 +2,7 @@
 
 Distributed MPC via consensus ADMM for 4-to-8 double-integrator agents in 2D, with formation control and time-varying graphs.
 
-[![test](https://github.com/Ali-Eiman/distributed-mpc-admm/actions/workflows/test.yml/badge.svg)](https://github.com/Ali-Eiman/distributed-mpc-admm/actions/workflows/test.yml)
+[![test](https://github.com/Ali-Eimaan/distributed-mpc-admm/actions/workflows/test.yml/badge.svg)](https://github.com/Ali-Eimaan/distributed-mpc-admm/actions/workflows/test.yml)
 [![Python 3.12 | 3.13](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue)](python/pyproject.toml)
 [![ROS 2 Lyrical Luth](https://img.shields.io/badge/ROS%202-Lyrical%20Luth-22314E)](cpp_admm/package.xml)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C)](cpp_admm/CMakeLists.txt)

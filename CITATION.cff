@@ -6,7 +6,7 @@ authors:
   - family-names: Eiman
     given-names: "M. Ali"
     email: ali.eimaan@icloud.com
-repository-code: "https://github.com/Ali-Eiman/distributed-mpc-admm"
+repository-code: "https://github.com/Ali-Eimaan/distributed-mpc-admm"
 abstract: >-
   A distributed model-predictive controller for double-integrator agents in 2D,
   coupled only through formation costs and solved by general-form consensus ADMM

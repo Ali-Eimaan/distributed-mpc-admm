@@ -62,4 +62,4 @@ ADMM convergence guarantee holds only for a fixed connected graph with synchrono
 and exact local solves — the switching and packet-loss results are measurements, not
 theorems.
 
-[0.1.0]: https://github.com/Ali-Eiman/distributed-mpc-admm/releases/tag/v0.1.0
+[0.1.0]: https://github.com/Ali-Eimaan/distributed-mpc-admm/releases/tag/v0.1.0
